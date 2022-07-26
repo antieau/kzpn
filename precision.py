@@ -43,6 +43,7 @@ def prism_exponent(prime, weight, exponent):
     returns a bound on the exponent of F^{[1,weight*exponent-1]}Prism_R
     where R is a finite chain ring of length exponent and residue field F_q.
     """
+    valuation = 0
     for degree in range(1, weight * exponent):
         valuation += my_valuation(prime, braces(degree, exponent))
     return valuation
