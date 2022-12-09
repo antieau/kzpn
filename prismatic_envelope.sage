@@ -501,13 +501,14 @@ def nablaP_matrix_OK(p,i,k,E,prec,Fprec):
         return result
     
     bk_factor=initialize_bk_factor()
+    print(bk_factor)
     
     # nablaP builder
     # First, nablaP_OK and then a nablaP_OKpik. We get the second using a saturation
     # method using the maps from prismaOK to prism OKpiK.
 
     # nablaP_OK builder
-    # Element of BK twist i is x*s^i, x in Prisma and s is the BK orientation.
+    # Element of BK twist i is x*s^i, x in Prism and s is the BK orientation.
     # So, x is a linear combination of powers of z.
     # Have to compute (\eta_L-\eta_R)(z^j*s^i).
     # Split into two things: \eta_L is easy.
@@ -625,6 +626,9 @@ def syntomic_matrices(p,i,k,E,prec,Fprec,nablaP_OK=False):
     # method using the maps from prismaOK to prism OKpiK.
     if nablaP_OK==False:
         nablaP_OK=nablaP_matrix_OK(p,i,k,E,prec,Fprec)
+
+    print('nablaP_OK is \n')
+    print(nablaP_OK)
     
     OKtoOKmodpi0=Matrix(W,k*i-1,k*i-1)
     for n in range(1,i*k):
