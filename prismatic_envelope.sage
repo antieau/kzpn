@@ -49,7 +49,10 @@ def prismatic_envelope_f(p,E,k,prec,Fprec):
     F-weight z is 1, Nygaard of z is 0.
     F-weight of f_j is k*p^j, Nygaard weight of f_j is p^j.
     """
-    num_f=floor(log(i-1,p))+1
+    if i==1:
+        num_f=0
+    else:
+        num_f=floor(log(i-1,p))+1
     B=PolynomialRing(A,'f',num_f)
     B.inject_variables()
     variable_names=B.variable_names()
@@ -58,11 +61,12 @@ def prismatic_envelope_f(p,E,k,prec,Fprec):
     for j in variable_names:
         fvars.append(B(j))
     fvars_phitilde=[]
-    for j in range(len(fvars)-1):
+    for j in range(num_f-1):
         fvars_phitilde.append(fvars[j]^p+p*fvars[j+1])
     # At the last stop, the delta term is beyond the f-precision
     # so it is not added.
-    fvars_phitilde.append(fvars[len(fvars)-1]^p)
+    if num_f>0:
+        fvars_phitilde.append(fvars[num_f-1]^p)
     
     def weight(funct):
         """The weight of a function.
@@ -73,7 +77,10 @@ def prismatic_envelope_f(p,E,k,prec,Fprec):
         """
         F_weight=Fprec
         # The highest possible Nygaard weight is that of z^{k-1}f_{num_f-1}, which has Nygaard weight p^{num_f-1}.
-        nygaard_weight=p^(num_f-1)
+        if num_f==0:
+            nygaard_weight=0
+        else:
+            nygaard_weight=p^(num_f-1)
         p_powers=[p^j for j in range(num_f)]
         
         def monomial_weight(m):
@@ -133,7 +140,9 @@ def prismatic_envelope_f(p,E,k,prec,Fprec):
         return B(g)
     
     rels=[]
-    if num_f==1:
+    if num_f==0:
+        pass
+    elif num_f==1:
         rels.append(fvars[0]^p)
     else:
         rels.append(trim(phitilde(B(E))*f1 + deltatilde(B(E))*f0^p))
@@ -174,21 +183,26 @@ def prismatic_envelope_f(p,E,k,prec,Fprec):
     for j in range(len(fvars)-1):
         phitilde_reduced = new_rels[j]+p*fvars[j+1]
         fvars_phi_divided.append(coefficient_divide_f(A(E)^(p^(j+1)),phitilde_reduced,Fprec,weight))
-    fvars_phi_divided.append(B(0))
+    if num_f>0:
+        fvars_phi_divided.append(B(0))
     
     def reduce_zk(funct):
         reduced=0
         def coefficient_reduce(c):
             # Takes a coefficient (a power series in z)
             # and returns an element of B obtained by using z^k=f_0
-            out=B(c[0])
-            for j in range(1,min(Fprec,c.precision_absolute())):
-                r=j//k
-                out+=fvars[0]^r*z^(j-k*r)*c[j]
-            return B(out)
+            if num_f>0:
+                out=B(c[0])
+                for j in range(1,min(Fprec,c.precision_absolute())):
+                    r=j//k
+                    out+=fvars[0]^r*z^(j-k*r)*c[j]
+                return B(out)
+            else:
+                return c
         for m in funct.monomials():
              reduced+=coefficient_reduce(funct.monomial_coefficient(m))*m
         return trim(B(reduced))
+
     
     def recursive_reduce(funct):
         prev_value = funct
@@ -202,7 +216,7 @@ def prismatic_envelope_f(p,E,k,prec,Fprec):
 
     # Only works for *homogeneous* terms in the f_j, and they get divided by the obvious Nygaard filtration.
     def phi_divided(funct):
-        result=0
+        result=B(0)
         for m in funct.monomials():
             c=funct.monomial_coefficient(m)
             result+=B(c.V(p)*m(fvars_phi_divided))
@@ -555,7 +569,10 @@ def syntomic_matrices(p,i,k,E,prec,Fprec,nablaP_OK=False):
     in the case it is precomputed.
     """
     B,fvars,weightB,phiBtilde,phi_dividedB,deltaBtilde,reduceB,recreduceB=prismatic_envelope_f(p,E,k,prec,Fprec)
-    num_f=floor(log(i-1,p))+1
+    if i==1:
+        num_f=0
+    else:
+        num_f=floor(log(i-1,p))+1
 
     # Basis z^c\prod_{j=0}^{num_f-1}f_j^{a_j}, 0<=a_j<=p-1, 0<=c<=k-1 with one exception: no 1.
 
@@ -565,7 +582,7 @@ def syntomic_matrices(p,i,k,E,prec,Fprec,nablaP_OK=False):
         n=ZZ(n)
         c=n.mod(k)
         d=W(n//k)
-        fprod=1
+        fprod=B(1)
         for j in range(num_f):
             fprod=fprod*fvars[j]^(d[j])
         column_to_process=recreduceB(E(z)^(i-(n//k))*z^c*fprod)
@@ -573,7 +590,7 @@ def syntomic_matrices(p,i,k,E,prec,Fprec,nablaP_OK=False):
             m=ZZ(m)
             a=m.mod(k)
             b=W(m//k)
-            gprod=1
+            gprod=B(1)
             for j in range(num_f):
                 gprod=gprod*fvars[j]^(b[j])
             coefficient_to_process=column_to_process.monomial_coefficient(gprod)
@@ -585,7 +602,7 @@ def syntomic_matrices(p,i,k,E,prec,Fprec,nablaP_OK=False):
         n=ZZ(n)
         c=n.mod(k)
         d=W(n//k)
-        fprod=1
+        fprod=B(1)
         for j in range(num_f):
             fprod=fprod*fvars[j]^(d[j])
         column_to_process=recreduceB(z^(p*c)*phi_dividedB(fprod))
@@ -593,7 +610,7 @@ def syntomic_matrices(p,i,k,E,prec,Fprec,nablaP_OK=False):
             m=ZZ(m)
             a=m.mod(k)
             b=W(m//k)
-            gprod=1
+            gprod=B(1)
             for j in range(num_f):
                 gprod=gprod*fvars[j]^(b[j])
             coefficient_to_process=column_to_process.monomial_coefficient(gprod)
@@ -607,7 +624,7 @@ def syntomic_matrices(p,i,k,E,prec,Fprec,nablaP_OK=False):
         n=ZZ(n)
         c=n.mod(k)
         d=W(n//k)
-        fprod=1
+        fprod=B(1)
         for j in range(num_f):
             fprod=fprod*fvars[j]^(d[j])
         column_to_process=recreduceB(E(z)^(i-(n//k)-1)*z^c*fprod)
@@ -615,21 +632,19 @@ def syntomic_matrices(p,i,k,E,prec,Fprec,nablaP_OK=False):
             m=ZZ(m)
             a=m.mod(k)
             b=W(m//k)
-            gprod=1
+            gprod=B(1)
             for j in range(num_f):
                 gprod=gprod*fvars[j]^(b[j])
             coefficient_to_process=column_to_process.monomial_coefficient(gprod)
             can1[m,n]=coefficient_to_process[a]
-            
+
     # nablaP builder
     # First, nablaP_OK and then a nablaP_OKpik. We get the second using a saturation
     # method using the maps from prismaOK to prism OKpiK.
     if nablaP_OK==False:
         nablaP_OK=nablaP_matrix_OK(p,i,k,E,prec,Fprec)
 
-    print('nablaP_OK is \n')
-    print(nablaP_OK)
-    
+   
     OKtoOKmodpi0=Matrix(W,k*i-1,k*i-1)
     for n in range(1,i*k):
         column_to_process=recreduceB(B(z^n))
@@ -637,7 +652,7 @@ def syntomic_matrices(p,i,k,E,prec,Fprec,nablaP_OK=False):
             m=ZZ(m)
             a=m.mod(k)
             b=W(m//k)
-            gprod=1
+            gprod=B(1)
             for j in range(num_f):
                 gprod=gprod*fvars[j]^(b[j])
             coefficient_to_process=column_to_process.monomial_coefficient(gprod)
@@ -650,7 +665,7 @@ def syntomic_matrices(p,i,k,E,prec,Fprec,nablaP_OK=False):
             m=ZZ(m)
             a=m.mod(k)
             b=W(m//k)
-            gprod=1
+            gprod=B(1)
             for j in range(num_f):
                 gprod=gprod*fvars[j]^(b[j])
             coefficient_to_process=column_to_process.monomial_coefficient(gprod)
@@ -658,6 +673,8 @@ def syntomic_matrices(p,i,k,E,prec,Fprec,nablaP_OK=False):
     
     # Given nablaP for OK, compute it for OK/pi^k.
     OKtoOKmodpi0,OKtoOKmodpi1,nablaP_OK,nablaP=square_complete_bottom(OKtoOKmodpi0,OKtoOKmodpi1,nablaP_OK)
+
+    print("we made it")
 
     # The relative syntomic matrix.
     syn0=can0-phi0
