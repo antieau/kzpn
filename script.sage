@@ -1,7 +1,6 @@
 """Commandline versus of script."""
 
 import sys
-set_verbose(-1)
 
 input_file = open(str(sys.argv[1]),'r')
 lines = input_file.readlines()
@@ -60,5 +59,7 @@ syn0,syn1,nablaN,nablaP=syntomic_matrices(p,i,n,E,total_precision,Fprec,debug=Fa
 # New
 coh_dict,final_precision=syntomic_cohomology(syn0,syn1,nablaN,nablaP)
 
-print('Elementary divisors of K_{}(R;Z_p)'.format(2*i-2)+' are {}'.format(coh_dict['h2'][1]))
-print('Elementary divisors of K_{}(R;Z_p)'.format(2*i-1)+' are {}'.format(coh_dict['h1'][1]))
+output_file = open(str(sys.argv[1])+'out.txt','w')
+output_file.write(str([valuation(a,p) for a in coh_dict['h2'][1]))
+output_file.write(str([valuation(a,p) for a in coh_dict['h1'][1]))
+output_file.close()

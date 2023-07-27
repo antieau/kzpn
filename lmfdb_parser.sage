@@ -1,7 +1,9 @@
 # Imports
 load('precision.py')
 
-load('lf_fields_2.sage')
+import sys
+target_lmfdb=sys.argv[1]
+load(target_lmfdb)
 
 for field in range(10):
     # Create a directory a.b.c.d
