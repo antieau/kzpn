@@ -1,5 +1,6 @@
 from precision import *
 from matrix_functions import *
+set_verbose(-1)
 
 """
 A module to compute p-adic syntomic cohomology of OK/pi^n.
@@ -40,7 +41,7 @@ def lazy_division(funct,gunct,Fprec):
 # Prismatic envelopes #
 #######################
 
-def prismatic_envelope_f(p,E,k,prec,Fprec):
+def prismatic_envelope_f(p,E,k,prec,Fprec,debug=False):
     """Returns B,grN,phi,delta, where B is a polynomial ring in f0,...,num_f-1,
     grN is a function which measures the Nygaard filtration of an element of
     B, phi is the graded lift of Frobenius, and delta is the graded
@@ -54,19 +55,31 @@ def prismatic_envelope_f(p,E,k,prec,Fprec):
     else:
         num_f=floor(log(i-1,p))+1
     B=PolynomialRing(A,'f',num_f)
-    B.inject_variables()
+    B.inject_variables(verbose=False)
     variable_names=B.variable_names()
     # A list of the fi for ease of reference.
     fvars=[]
     for j in variable_names:
         fvars.append(B(j))
+    # Viewing f_j has having Nygaard weight p^j, we have the graded Frobenius
+    # phitilde(x)=x^p+p\delta_i(x) for a homogeneous element of Nygaard weight i on the direct
+    # sum of the Nygaard pieces; see Lemma 4.3 of KZPN. [REF]
+    #
+    # We record the value of phitilde on f_j. As f_{j+1}=\delta_{p^j}(f_j) by definition, we have
+    # phitilde(f_j)=f_j^p+p f_{j+1}.
     fvars_phitilde=[]
     for j in range(num_f-1):
         fvars_phitilde.append(fvars[j]^p+p*fvars[j+1])
     # At the last stop, the delta term is beyond the f-precision
     # so it is not added.
+    # TODO: isn't fvars[num_f-1]^p *also* beyond the f-precision, so could we not set it to zero?
     if num_f>0:
         fvars_phitilde.append(fvars[num_f-1]^p)
+
+    if debug:
+        print("fvars_phitilde:")
+        print(fvars_phitilde)
+        print('\n')
     
     def weight(funct):
         """The weight of a function.
@@ -143,12 +156,23 @@ def prismatic_envelope_f(p,E,k,prec,Fprec):
     if num_f==0:
         pass
     elif num_f==1:
-        rels.append(fvars[0]^p)
+        # CHANGED: rels.append(fvars[0]^p)
+        # TODO: could just be set to 0, right?
+        rels.append(fvars_phitilde[0])
     else:
+        # The following is the first relation in Lemma 4.9 [REF] under the assumption that r has
+        # rank 1 so that \delta(r)=0.
         rels.append(trim(phitilde(B(E))*f1 + deltatilde(B(E))*f0^p))
         for j in range(1,num_f-1):
             rels.append(trim(deltatilde(rels[j-1])))
-        rels.append(fvars[num_f-1]^p)
+        # CHANGED: rels.append(fvars[num_f-1]^p)
+        # TODO: could just be set to 0, right?
+        rels.append(fvars_phitilde[num_f-1])
+
+    if debug:
+        print("rels:")
+        print(rels)
+        print('\n')
         
     # new_rels is a lookup table for how to rewrite f_j^p in terms of other factors.
     new_rels=[]
@@ -185,6 +209,10 @@ def prismatic_envelope_f(p,E,k,prec,Fprec):
         fvars_phi_divided.append(coefficient_divide_f(A(E)^(p^(j+1)),phitilde_reduced,Fprec,weight))
     if num_f>0:
         fvars_phi_divided.append(B(0))
+    if debug:
+        print("fvars divided frobeniuses")
+        print(fvars_phi_divided)
+        print('\n')
     
     def reduce_zk(funct):
         reduced=0
@@ -203,7 +231,6 @@ def prismatic_envelope_f(p,E,k,prec,Fprec):
              reduced+=coefficient_reduce(funct.monomial_coefficient(m))*m
         return trim(B(reduced))
 
-    
     def recursive_reduce(funct):
         prev_value = funct
         funct = reduce_zk(B(funct))
@@ -225,7 +252,7 @@ def prismatic_envelope_f(p,E,k,prec,Fprec):
     return B,fvars,weight,phitilde,phi_divided,deltatilde,reduce,recursive_reduce
 
     
-def prismatic_envelope_g(p,E,k,prec,Fprec):
+def prismatic_envelope_g(p,E,k,prec,Fprec,debug=False):
     """For working with O_K.
 
     Returns C,grN,phi,delta, where C is a polynomial ring in g0,...,num_g-1,
@@ -238,10 +265,10 @@ def prismatic_envelope_g(p,E,k,prec,Fprec):
     gj has F-weight p^j and Nygaard-weight p^j.
     """
     A0.<d>=PolynomialRing(A)
-    A0.inject_variables()
+    A0.inject_variables(verbose=False)
     num_g=floor(log(n*i-1,p))+1
     C=PolynomialRing(A0,'g',num_g)
-    C.inject_variables()
+    C.inject_variables(verbose=False)
     variable_names=C.variable_names()
     # A list of the gi for ease of reference.
     gvars=[]
@@ -329,6 +356,7 @@ def prismatic_envelope_g(p,E,k,prec,Fprec):
     if num_g==1:
         rels.append(gvars[0]^p)
     else:
+        # This time, the relations from Lemma 4.9 of KZPN [REF] are more complicated.
         if p==2:
             rels.append(trim(phitilde(E_C)*g1+(deltatilde(E_C)+E_C^2)*g0^2-z*E_C*d*g0))
         else:
@@ -339,6 +367,11 @@ def prismatic_envelope_g(p,E,k,prec,Fprec):
         for s in range(1,num_g-1):
             rels.append(trim(deltatilde(rels[s-1])))
         rels.append(gvars[num_g-1]^p)
+
+    if debug:
+        print("rels in prismatic_envelope_g:")
+        print(rels)
+        print('\n')
         
     # new_rels is a lookup table for how to rewrite g_j^p in terms of other factors.
     if num_g==1:
@@ -350,6 +383,11 @@ def prismatic_envelope_g(p,E,k,prec,Fprec):
             u=r.monomial_coefficient(gvars[j]^p)
             u=A(u)
             new_rels.append(trim(gvars[j]^p-(1/u)*r))
+
+    if debug:
+        print("new_rels before reduction in prismatic_envelope_g:")
+        print(new_rels)
+        print('\n')
     
     def coefficient_divide(funct,gunct,Fprec,weight):
         """Takes a polynomial gunct in the d,gj and divides all the coefficients by funct."""
@@ -406,6 +444,11 @@ def prismatic_envelope_g(p,E,k,prec,Fprec):
         while prev_value != new_rels[j]:
             prev_value=new_rels[j]
             new_rels[j]=reduce(C(prev_value))
+
+    if debug:
+        print("new_rels in prismatic_envelope_g:")
+        print(new_rels)
+        print('\n')
     
     def recursive_reduce(funct):
         """Recursively reduces an arbitrary expression using reduce_d and the reduced new_rels."""
@@ -462,13 +505,13 @@ def prismatic_envelope_g(p,E,k,prec,Fprec):
 # Build nabla on prismatic cohomology for OK. #
 ###############################################
 
-def nablaP_matrix_OK(p,i,k,E,prec,Fprec):
+def nablaP_matrix_OK(p,i,k,E,prec,Fprec,debug=False):
     """Returns nablaP_OK.
 
     Note that this does not technically depend on k, so one can run this once
     for a large k and slice down to compute for several k at once.
     """
-    C,gvarsC,weightC,phiC,deltaC,phiCtilde,deltaCtilde,reduceC,recreduceC,g0_divideC,coefficient_divideC=prismatic_envelope_g(p,E,k,prec,Fprec)
+    C,gvarsC,weightC,phiC,deltaC,phiCtilde,deltaCtilde,reduceC,recreduceC,g0_divideC,coefficient_divideC=prismatic_envelope_g(p,E,k,prec,Fprec,debug=debug)
     
     def initialize_u():
         # Takes almost no time.
@@ -515,7 +558,9 @@ def nablaP_matrix_OK(p,i,k,E,prec,Fprec):
         return result
     
     bk_factor=initialize_bk_factor()
-    print(bk_factor)
+    if debug:
+        print("bk factor is")
+        print(bk_factor)
     
     # nablaP builder
     # First, nablaP_OK and then a nablaP_OKpik. We get the second using a saturation
@@ -554,21 +599,25 @@ def nablaP_matrix_OK(p,i,k,E,prec,Fprec):
                 nablaP_OK[m,n-1]=send_g0_to_one[m]
         return nablaP_OK
             
-    return initialize_nablaP_OK()
+    nablaP_OK=initialize_nablaP_OK()
+    if debug:
+        print("nablaP_OK is")
+        print(nablaP_OK)
+    return nablaP_OK
 
 
 #########################################################
 # The main function which collates everything together. #
 #########################################################
 
-def syntomic_matrices(p,i,k,E,prec,Fprec,nablaP_OK=False):
+def syntomic_matrices(p,i,k,E,prec,Fprec,nablaP_OK=False,debug=False):
     """Returns syn0,syn1,nablaN,nablaP.
 
     The slowest part of the computation is the computation of the preliminary
     matrix nablaP_OK, so this can alternatively be passed as an argument
     in the case it is precomputed.
     """
-    B,fvars,weightB,phiBtilde,phi_dividedB,deltaBtilde,reduceB,recreduceB=prismatic_envelope_f(p,E,k,prec,Fprec)
+    B,fvars,weightB,phiBtilde,phi_dividedB,deltaBtilde,reduceB,recreduceB=prismatic_envelope_f(p,E,k,prec,Fprec,debug=debug)
     if i==1:
         num_f=0
     else:
@@ -595,6 +644,11 @@ def syntomic_matrices(p,i,k,E,prec,Fprec,nablaP_OK=False):
                 gprod=gprod*fvars[j]^(b[j])
             coefficient_to_process=column_to_process.monomial_coefficient(gprod)
             can0[m-1,n-1]=coefficient_to_process[a]
+
+    if debug:
+        print("can0:")
+        print(can0)
+        print('\n')
 
     # phi0 builder
     phi0=Matrix(W,k*i-1,k*i-1)
@@ -638,12 +692,16 @@ def syntomic_matrices(p,i,k,E,prec,Fprec,nablaP_OK=False):
             coefficient_to_process=column_to_process.monomial_coefficient(gprod)
             can1[m,n]=coefficient_to_process[a]
 
+    if debug:
+        print('can1:')
+        print(can1)
+        print('\n')
+
     # nablaP builder
     # First, nablaP_OK and then a nablaP_OKpik. We get the second using a saturation
     # method using the maps from prismaOK to prism OKpiK.
     if nablaP_OK==False:
-        nablaP_OK=nablaP_matrix_OK(p,i,k,E,prec,Fprec)
-
+        nablaP_OK=nablaP_matrix_OK(p,i,k,E,prec,Fprec,debug=debug)
    
     OKtoOKmodpi0=Matrix(W,k*i-1,k*i-1)
     for n in range(1,i*k):
@@ -673,8 +731,6 @@ def syntomic_matrices(p,i,k,E,prec,Fprec,nablaP_OK=False):
     
     # Given nablaP for OK, compute it for OK/pi^k.
     OKtoOKmodpi0,OKtoOKmodpi1,nablaP_OK,nablaP=square_complete_bottom(OKtoOKmodpi0,OKtoOKmodpi1,nablaP_OK)
-
-    print("we made it")
 
     # The relative syntomic matrix.
     syn0=can0-phi0
