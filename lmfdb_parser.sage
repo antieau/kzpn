@@ -88,6 +88,8 @@ for field in range(10):
     # Close the file
     input_file.close()
 
+file_list = open('file_list.txt','w')
+
 for field in range(10):
     # Load data from a.b.c.d_input.txt
     input_file = open('data/'+labels[field]+'_input.txt','r')
@@ -107,6 +109,7 @@ for field in range(10):
         for i in range(i_min,i_max+1):
             # Create a file a.b.c.d/n/i_in.txt for each n,i
             input_file = open('data/'+labels[field]+'.'+str(n)+'.'+str(i)+'_in.txt','w')
+            file_list.write('data/'+labels[field]+'.'+str(n)+'.'+str(i)+'_in.txt'+'\n')
             
             # Populate    
             input_file.write(labels[field]+'\n')
@@ -162,3 +165,4 @@ for field in range(10):
             # Close the file
             input_file.close()
 
+file_list.close()
