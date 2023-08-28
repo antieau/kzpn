@@ -1,4 +1,4 @@
-"""Commandline versus of script."""
+"""Commandline version of script."""
 
 import sys
 set_verbose(-1)
@@ -47,9 +47,6 @@ input_file.close()
 load('prismatic_envelope.sage')
 load('precision.py')
 
-
-
-    
 #%%capture
 # Suppresses some Python warnings and SAGE variable injections
 
