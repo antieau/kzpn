@@ -54,7 +54,10 @@ def prismatic_envelope_f(p,E,k,prec,Fprec,debug=False):
         num_f=0
     else:
         num_f=floor(log(i-1,p))+1
-    B=PolynomialRing(A,'f',num_f)
+    if num_f==1:
+        B=PolynomialRing(A,'f0',1)
+    else:
+        B=PolynomialRing(A,'f',num_f)
     B.inject_variables(verbose=False)
     C=PolynomialRing(B,'d_tilde')
     variable_names=B.variable_names()
@@ -251,13 +254,38 @@ def prismatic_envelope_f(p,E,k,prec,Fprec,debug=False):
             result+=B(c.V(p)*m(fvars_phi_divided))
         return result
 
-    def recreduce_nygaard(i,j,funct):
-        # Reduces a polynomial in d_tilde^i z^j\prod f_j^{a_j}
-        # subject to being in N^{>=j}.
-        for i in len(funct.monomials()):
-            if weight(funct.coefficients()[i]):
+    def expand_d_tilde(target_nygaard_weight,funct):
+        new_funct=C(0)
+        for m in funct.monomials():
+            m_coefficient=funct.monomial_coefficient(m)
+            for t in m_coefficient.monomials():
+                a=min(weight(B(t))[1]+m.degree()-target_nygaard_weight,m.degree())
+                new_funct+=m_coefficient.monomial_coefficient(t)*E^a*t*d_tilde^(m.degree()-a)
+        return new_funct
 
-    return B,C,fvars,weight,phitilde,phi_divided,deltatilde,reduce,recursive_reduce
+    def coefficient_reduce(funct):
+        new_funct=C(0)
+        for m in funct.monomials():
+            new_funct+=C(recursive_reduce(funct.monomial_coefficient(m)))*m
+        return new_funct
+
+    def recreduce_nygaard(target_nygaard_weight,funct):
+        # Reduces a polynomial in d_tilde^A z^j\prod f_j^{a_j}
+        # subject to being in N^{>=target_nygaard_weight}.
+        for m in funct.monomials():
+            if weight(funct.monomial_coefficient(m))[1]+m.degree()<j:
+                raise ValueError("Input funct has Nygaard weight smaller than target_nygaard_weight.")
+        prev_value = funct
+        funct = coefficient_reduce(funct)
+        funct = expand_d_tilde(target_nygaard_weight,funct)
+        while prev_value!=funct:
+            prev_value = funct
+            funct = coefficient_reduce(funct)
+            funct = expand_d_tilde(target_nygaard_weight,funct)
+        return funct
+
+    return B,C,fvars,weight,phitilde,phi_divided,deltatilde,reduce,recursive_reduce,recreduce_nygaard
+
 
     
 def prismatic_envelope_g(p,E,k,prec,Fprec,debug=False):
@@ -625,7 +653,7 @@ def syntomic_matrices(p,i,k,E,prec,Fprec,nablaP_OK=False,debug=False):
     matrix nablaP_OK, so this can alternatively be passed as an argument
     in the case it is precomputed.
     """
-    B,C,fvars,weightB,phiBtilde,phi_dividedB,deltaBtilde,reduceB,recreduceB=prismatic_envelope_f(p,E,k,prec,Fprec,debug=debug)
+    B,C,fvars,weightB,phiBtilde,phi_dividedB,deltaBtilde,reduceB,recreduceB,recreduceN=prismatic_envelope_f(p,E,k,prec,Fprec,debug=debug)
     if i==1:
         num_f=0
     else:
@@ -751,11 +779,125 @@ def syntomic_matrices(p,i,k,E,prec,Fprec,nablaP_OK=False,debug=False):
 
     return syn0,syn1,nablaN,nablaP
 
+
+def v1_matrices(p,i,k,E,prec,Fprec,debug=False):
+    # WARNING: padic precision calcluations for v1 have not been checked.
+    if i-p+1<=0:
+        raise NotImplementedError
+    B,C,fvars,weightB,phiBtilde,phi_dividedB,deltaBtilde,reduceB,recreduceB,recreduceN=prismatic_envelope_f(p,E,k,prec,Fprec,debug=debug)
+    if i==1:
+        num_f=0
+    else:
+        num_f=floor(log(i-1,p))+1
+
+    # v1_on_P0 builder
+    v1P0=Matrix(W,k*i-1,k*(i-p+1)-1)
+    for n in range(1,(i-p+1)*k):
+        n=ZZ(n)
+        c=n.mod(k)
+        d=W(n//k)
+        fprod=B(1)
+        for j in range(num_f):
+            fprod=fprod*fvars[j]^(d[j])
+        # We use c+1 to denote that we've multiplied by 'z^p'.
+        column_to_process=recreduceB(z^(c+p)*fprod)
+        for m in range(1,i*k):
+            m=ZZ(m)
+            a=m.mod(k)
+            b=W(m//k)
+            gprod=B(1)
+            for j in range(num_f):
+                gprod=gprod*fvars[j]^(b[j])
+            coefficient_to_process=column_to_process.monomial_coefficient(gprod)
+            v1P0[m-1,n-1]=coefficient_to_process[a]
+
+    # v1_on_N0 builder
+    v1N0=Matrix(W,k*i-1,k*(i-p+1)-1)
+    for n in range(1,(i-p+1)*k):
+        n=ZZ(n)
+        c=n.mod(k)
+        d=W(n//k)
+        fprod=B(1)
+        for j in range(num_f):
+            fprod=fprod*fvars[j]^(d[j])
+        # We use c+1 to denote that we've multiplied by 'z^p'.
+        reduced_form=recreduceN(i,C(z^c*fprod)*d_tilde^(i-p+1-(n//k)+p))
+        column_to_process=B(0)
+        for cffcnt in reduced_form.coefficients():
+            column_to_process+=B(cffcnt)
+        for m in range(1,i*k):
+            m=ZZ(m)
+            a=m.mod(k)
+            b=W(m//k)
+            gprod=B(1)
+            for j in range(num_f):
+                gprod=gprod*fvars[j]^(b[j])
+            coefficient_to_process=column_to_process.monomial_coefficient(gprod)
+            v1N0[m-1,n-1]=coefficient_to_process[a]
+
+    # v1_on_P1 builder
+    v1P1=Matrix(W,k*i-1,k*(i-p+1)-1)
+    for n in range(0,(i-p+1)*k-1):
+        n=ZZ(n)
+        c=n.mod(k)
+        d=W(n//k)
+        fprod=B(1)
+        for j in range(num_f):
+            fprod=fprod*fvars[j]^(d[j])
+        # We use c+1 to denote that we've multiplied by 'z^p'.
+        column_to_process=recreduceB(z^(c+p)*fprod)
+        for m in range(0,i*k-1):
+            m=ZZ(m)
+            a=m.mod(k)
+            b=W(m//k)
+            gprod=B(1)
+            for j in range(num_f):
+                gprod=gprod*fvars[j]^(b[j])
+            coefficient_to_process=column_to_process.monomial_coefficient(gprod)
+            v1P1[m,n]=coefficient_to_process[a]
+
+    # v1_on_N1 builder
+    v1N1=Matrix(W,k*i-1,k*(i-p+1)-1)
+    for n in range(0,(i-p+1)*k-1):
+        n=ZZ(n)
+        c=n.mod(k)
+        d=W(n//k)
+        fprod=B(1)
+        for j in range(num_f):
+            fprod=fprod*fvars[j]^(d[j])
+        print("fprod and c are {} and {}".format(fprod,c))
+        # We use c+1 to denote that we've multiplied by 'z^p'.
+        print("input is {}".format(C(z^c*fprod)*d_tilde^(i-p-(n//k)+p)))
+        reduced_form=recreduceN(i-1,C(z^c*fprod)*d_tilde^(i-p-(n//k)+p))
+        print("reduced_form is {}".format(reduced_form))
+        column_to_process=B(0)
+        for cffcnt in reduced_form.coefficients():
+            column_to_process+=B(cffcnt)
+        print(column_to_process)
+        print('\n')
+        for m in range(0,i*k-1):
+            m=ZZ(m)
+            a=m.mod(k)
+            b=W(m//k)
+            gprod=B(1)
+            for j in range(num_f):
+                gprod=gprod*fvars[j]^(b[j])
+            print("gprod and a are {} and {}".format(gprod,a))
+            coefficient_to_process=column_to_process.monomial_coefficient(gprod)
+            print("coefficient to process is {}".format(coefficient_to_process))
+            v1N1[m,n]=coefficient_to_process[a]
+
+        return v1N0,v1P0,v1N1,v1P1
+
+###########
+# Old v1. #
+###########
+
 def syntomic_matrices_v1(p,i,k,E,prec,Fprec,debug=False):
     # WARNING: this is not correct.
     if i-p+1<=0:
         raise NotImplementedError
-    B,C,fvars,weightB,phiBtilde,phi_dividedB,deltaBtilde,reduceB,recreduceB=prismatic_envelope_f(p,E,k,prec,Fprec,debug=debug)
+    B,C,fvars,weightB,phiBtilde,phi_dividedB,deltaBtilde,reduceB,recreduceB,recreduceN=prismatic_envelope_f(p,E,k,prec,Fprec,debug=debug)
     if i==1:
         num_f=0
     else:
@@ -1027,6 +1169,7 @@ def syntomic_matrices_v1(p,i,k,E,prec,Fprec,debug=False):
     a_nablaN,b_nablaN,v1N1,v1N0=square_complete_bottom(a_nablaN,b_nablaN,v1N0)
 
     return a_syn0,a_syn1,a_nablaN,a_nablaP,b_syn0,b_syn1,b_nablaN,b_nablaP,v1N0,v1P0,v1N1,v1P1
+
 
            
 ###########################################################################
