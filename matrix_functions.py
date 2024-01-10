@@ -2,7 +2,6 @@
 
 from sage.all import Matrix, lcm, identity_matrix, rank, diagonal_matrix
 
-
 def matrix_exponent(M):
     """A helper function.
 
@@ -17,18 +16,15 @@ def matrix_exponent(M):
         N = lcm(N, d)
     return N
 
-
 def square_complete_top(can0, can1, nablaP):
     """Completes the top of a partially commutative diagram of matrices of full rank."""
     R = nablaP.base_ring()
     return can0, can1, Matrix(R, (can1 ** (-1)) * nablaP * can0), nablaP
 
-
 def square_complete_right(syn0, nablaN, nablaP):
     """Completes the right of a partially commutative diagram of matrices of full rank."""
     R = nablaP.base_ring()
     return syn0, Matrix(R, nablaP * syn0 * (nablaN ** (-1))), nablaN, nablaP
-
 
 def square_complete_bottom(OKtoOKmodpi0, OKtoOKmodpi1, nablaP_OK):
     """Completes the bottom of a partially commutative diagram of matrices of full rank."""
@@ -40,14 +36,12 @@ def square_complete_bottom(OKtoOKmodpi0, OKtoOKmodpi1, nablaP_OK):
         Matrix(R, OKtoOKmodpi1 * nablaP_OK * (OKtoOKmodpi0 ** (-1))),
     )
 
-
 def standard_projection_matrix(a, b):
     """Returns the standard projection matrix of shape a<=b."""
     if a > b:
         raise TypeError("The input should be a pair (a,b) where a<=b.")
     M = identity_matrix(b)
     return M[0:a, :]
-
 
 def saturation(M):
     """The saturation of a matrix.
@@ -76,7 +70,6 @@ def saturation(M):
         Matrix(R, P * S),
         Matrix(R, (S ** (-1)) * P.transpose()),
     )
-
 
 def saturate_square(syn0, syn1, etaN, etaP):
     """The saturation of a square.
