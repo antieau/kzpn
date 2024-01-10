@@ -56,7 +56,9 @@ def prismatic_envelope_f(p,E,k,prec,Fprec,debug=False):
         num_f=floor(log(i-1,p))+1
     B=PolynomialRing(A,'f',num_f)
     B.inject_variables(verbose=False)
+    C=PolynomialRing(B,'d_tilde')
     variable_names=B.variable_names()
+    C.inject_variables(verbose=False)
     # A list of the fi for ease of reference.
     fvars=[]
     for j in variable_names:
@@ -249,7 +251,13 @@ def prismatic_envelope_f(p,E,k,prec,Fprec,debug=False):
             result+=B(c.V(p)*m(fvars_phi_divided))
         return result
 
-    return B,fvars,weight,phitilde,phi_divided,deltatilde,reduce,recursive_reduce
+    def recreduce_nygaard(i,j,funct):
+        # Reduces a polynomial in d_tilde^i z^j\prod f_j^{a_j}
+        # subject to being in N^{>=j}.
+        for i in len(funct.monomials()):
+            if weight(funct.coefficients()[i]):
+
+    return B,C,fvars,weight,phitilde,phi_divided,deltatilde,reduce,recursive_reduce
 
     
 def prismatic_envelope_g(p,E,k,prec,Fprec,debug=False):
@@ -617,7 +625,7 @@ def syntomic_matrices(p,i,k,E,prec,Fprec,nablaP_OK=False,debug=False):
     matrix nablaP_OK, so this can alternatively be passed as an argument
     in the case it is precomputed.
     """
-    B,fvars,weightB,phiBtilde,phi_dividedB,deltaBtilde,reduceB,recreduceB=prismatic_envelope_f(p,E,k,prec,Fprec,debug=debug)
+    B,C,fvars,weightB,phiBtilde,phi_dividedB,deltaBtilde,reduceB,recreduceB=prismatic_envelope_f(p,E,k,prec,Fprec,debug=debug)
     if i==1:
         num_f=0
     else:
@@ -747,7 +755,7 @@ def syntomic_matrices_v1(p,i,k,E,prec,Fprec,debug=False):
     # WARNING: this is not correct.
     if i-p+1<=0:
         raise NotImplementedError
-    B,fvars,weightB,phiBtilde,phi_dividedB,deltaBtilde,reduceB,recreduceB=prismatic_envelope_f(p,E,k,prec,Fprec,debug=debug)
+    B,C,fvars,weightB,phiBtilde,phi_dividedB,deltaBtilde,reduceB,recreduceB=prismatic_envelope_f(p,E,k,prec,Fprec,debug=debug)
     if i==1:
         num_f=0
     else:
