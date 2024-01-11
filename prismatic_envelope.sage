@@ -655,10 +655,10 @@ def syntomic_matrices(p,i,k,E,prec,Fprec,nablaP_OK=False,debug=False):
     in the case it is precomputed.
     """
     B,C,fvars,weightB,phiBtilde,phi_dividedB,deltaBtilde,reduceB,recreduceB,recreduceN=prismatic_envelope_f(p,E,k,prec,Fprec,debug=debug)
-    if i==1:
+    if (Fprec-1)//k==0:
         num_f=0
     else:
-        num_f=floor(log(i-1,p))+1
+        num_f=floor(log((Fprec-1)//k,p))+1
 
     # Basis z^c\prod_{j=0}^{num_f-1}f_j^{a_j}, 0<=a_j<=p-1, 0<=c<=k-1 with one exception: no 1.
 
@@ -684,9 +684,10 @@ def syntomic_matrices(p,i,k,E,prec,Fprec,nablaP_OK=False,debug=False):
             fprod_str=''
         else:
             fprod_str=str(fprod)
-        gens_N0.append("E^{}".format(i-(n//k))+z_str+fprod_str)
+        number_of_ds = max(i - (n//k), 0)
+        gens_N0.append("E^{}".format(number_of_ds)+z_str+fprod_str)
         gens_P0.append(z_str+fprod_str+'∂')
-        column_to_process=recreduceB(E(z)^(i-(n//k))*z^c*fprod)
+        column_to_process=recreduceB(E(z)^(number_of_ds)*z^c*fprod)
         for m in range(1,Fprec):
             m=ZZ(m)
             a=m.mod(k)
@@ -711,7 +712,9 @@ def syntomic_matrices(p,i,k,E,prec,Fprec,nablaP_OK=False,debug=False):
         fprod=B(1)
         for j in range(num_f):
             fprod=fprod*fvars[j]^(d[j])
-        column_to_process=recreduceB(z^(p*c)*phi_dividedB(fprod))
+        excess_nygaard = max((n//k)-i, 0)
+        excess_factor = 1 if excess_nygaard==0 else phiB(E)^excess_nygaard
+        column_to_process=recreduceB(z^(p*c)*excess_factor*phi_dividedB(fprod))
         for m in range(1,Fprec):
             m=ZZ(m)
             a=m.mod(k)
@@ -741,10 +744,10 @@ def syntomic_matrices(p,i,k,E,prec,Fprec,nablaP_OK=False,debug=False):
             fprod_str=''
         else:
             fprod_str=str(fprod)
-
-        gens_N1.append("E^{}".format(i-(n//k)-1)+z_str+fprod_str+'∇z')
+        number_of_ds = max(i - (n//k) - 1, 0)
+        gens_N1.append("E^{}".format(number_of_ds)+z_str+fprod_str+'∇z')
         gens_P1.append(z_str+fprod_str+'∂∇z')
-        column_to_process=recreduceB(E(z)^(i-(n//k)-1)*z^c*fprod)
+        column_to_process=recreduceB(E(z)^(number_of_ds)*z^c*fprod)
         for m in range(0,Fprec-1):
             m=ZZ(m)
             a=m.mod(k)
@@ -848,9 +851,9 @@ def v1_matrices(p,i,k,E,prec,Fprec,debug=False):
         fprod=B(1)
         for j in range(num_f):
             fprod=fprod*fvars[j]^(d[j])
-        # We use c+1 to denote that we've multiplied by 'z^p'.
-        print(C(z^c*fprod)*d_tilde^(i-p+1-(n//k)+p))
-        reduced_form=recreduceN(i,C(z^c*fprod)*d_tilde^(i-p+1-(n//k)+p))
+        number_of_ds = max(i-p+1 - (n//k), 0) #how many factors of d we use to pad to nygaard filtr. i-p+1
+        print(C(z^c*fprod)*d_tilde^(number_of_ds+p))
+        reduced_form=recreduceN(i,C(z^c*fprod)*d_tilde^(number_of_ds+p))
         print(reduced_form)
         column_to_process=B(0)
         for cffcnt in reduced_form.coefficients():
@@ -895,8 +898,8 @@ def v1_matrices(p,i,k,E,prec,Fprec,debug=False):
         fprod=B(1)
         for j in range(num_f):
             fprod=fprod*fvars[j]^(d[j])
-        # We use c+1 to denote that we've multiplied by 'z^p'.
-        reduced_form=recreduceN(i-1,C(z^c*fprod)*d_tilde^(i-p-(n//k)+p))
+        number_of_ds = max(i-p - (n//k), 0) #number of factors to pad to Nygaard filtr. i-p
+        reduced_form=recreduceN(i-1,C(z^c*fprod)*d_tilde^(number_of_ds+p))
         column_to_process=B(0)
         for cffcnt in reduced_form.coefficients():
             column_to_process+=B(cffcnt)
