@@ -49,10 +49,10 @@ def prismatic_envelope_f(p,E,k,prec,Fprec,debug=False):
     F-weight z is 1, Nygaard of z is 0.
     F-weight of f_j is k*p^j, Nygaard weight of f_j is p^j.
     """
-    if i==1:
+    if (Fprec-1)//k==0:
         num_f=0
     else:
-        num_f=floor(log(i-1,p))+1
+        num_f=floor(log((Fprec-1)//k,p))+1
     if num_f==1:
         B=PolynomialRing(A,'f0',1)
     else:
@@ -303,7 +303,7 @@ def prismatic_envelope_g(p,E,k,prec,Fprec,debug=False):
     """
     A0.<d>=PolynomialRing(A)
     A0.inject_variables(verbose=False)
-    num_g=floor(log(n*i-1,p))+1
+    num_g=floor(log(Fprec-1,p))+1
     C=PolynomialRing(A0,'g',num_g)
     C.inject_variables(verbose=False)
     variable_names=C.variable_names()
@@ -622,9 +622,9 @@ def nablaP_matrix_OK(p,i,k,E,prec,Fprec,debug=False):
     # Can probably get away with floor(log(k*i-1,p)).
 
     def initialize_nablaP_OK():
-        nablaP_OK=Matrix(W,k*i-1,k*i-1)
+        nablaP_OK=Matrix(W,Fprec-1,Fprec-1)
         old_column_to_process=-bk_factor
-        for n in range(1,i*k):
+        for n in range(1,Fprec):
             column_to_process=recreduceC((z-gvarsC[0])*old_column_to_process)
             old_column_to_process=column_to_process
             input_build=[1]+[0 for i in range(len(gvarsC)-1)]
@@ -632,7 +632,7 @@ def nablaP_matrix_OK(p,i,k,E,prec,Fprec,debug=False):
             for j in range(1,len(gvarsC)):
                 send_g0_to_one_dict[gvarsC[j]]=0
             send_g0_to_one=A(column_to_process.coefficient(send_g0_to_one_dict))
-            for m in range(0,i*k-1):
+            for m in range(0,Fprec-1):
                 nablaP_OK[m,n-1]=send_g0_to_one[m]
         return nablaP_OK
             
@@ -662,17 +662,32 @@ def syntomic_matrices(p,i,k,E,prec,Fprec,nablaP_OK=False,debug=False):
 
     # Basis z^c\prod_{j=0}^{num_f-1}f_j^{a_j}, 0<=a_j<=p-1, 0<=c<=k-1 with one exception: no 1.
 
+    gens_N0=[]
+    gens_P0=[]
+    gens_N1=[]
+    gens_P1=[]
+
     # can0 builder
-    can0=Matrix(W,k*i-1,k*i-1)
-    for n in range(1,i*k):
+    can0=Matrix(W,Fprec-1,Fprec-1)
+    for n in range(1,Fprec):
         n=ZZ(n)
         c=n.mod(k)
         d=W(n//k)
         fprod=B(1)
         for j in range(num_f):
             fprod=fprod*fvars[j]^(d[j])
+        if c!=0:
+            z_str=str(z)
+        else:
+            z_str=''
+        if fprod==B(1):
+            fprod_str=''
+        else:
+            fprod_str=str(fprod)
+        gens_N0.append("E^{}".format(i-(n//k))+z_str+fprod_str)
+        gens_P0.append(z_str+fprod_str+'∂')
         column_to_process=recreduceB(E(z)^(i-(n//k))*z^c*fprod)
-        for m in range(1,i*k):
+        for m in range(1,Fprec):
             m=ZZ(m)
             a=m.mod(k)
             b=W(m//k)
@@ -688,8 +703,8 @@ def syntomic_matrices(p,i,k,E,prec,Fprec,nablaP_OK=False,debug=False):
         print('\n')
 
     # phi0 builder
-    phi0=Matrix(W,k*i-1,k*i-1)
-    for n in range(1,i*k):
+    phi0=Matrix(W,Fprec-1,Fprec-1)
+    for n in range(1,Fprec):
         n=ZZ(n)
         c=n.mod(k)
         d=W(n//k)
@@ -697,7 +712,7 @@ def syntomic_matrices(p,i,k,E,prec,Fprec,nablaP_OK=False,debug=False):
         for j in range(num_f):
             fprod=fprod*fvars[j]^(d[j])
         column_to_process=recreduceB(z^(p*c)*phi_dividedB(fprod))
-        for m in range(1,i*k):
+        for m in range(1,Fprec):
             m=ZZ(m)
             a=m.mod(k)
             b=W(m//k)
@@ -710,16 +725,27 @@ def syntomic_matrices(p,i,k,E,prec,Fprec,nablaP_OK=False,debug=False):
     # can1 builder
     # Same as above but with basis starting with 1 and going up to z^{k-2}*num_f or z^{k-1}f_{prec-1}
     # Does not make great sense for k=1.
-    can1=Matrix(W,k*i-1,k*i-1)
-    for n in range(0,k*i-1):
+    can1=Matrix(W,Fprec-1,Fprec-1)
+    for n in range(0,Fprec-1):
         n=ZZ(n)
         c=n.mod(k)
         d=W(n//k)
         fprod=B(1)
         for j in range(num_f):
             fprod=fprod*fvars[j]^(d[j])
+        if c!=0:
+            z_str=str(z)
+        else:
+            z_str=''
+        if fprod==B(1):
+            fprod_str=''
+        else:
+            fprod_str=str(fprod)
+
+        gens_N1.append("E^{}".format(i-(n//k)-1)+z_str+fprod_str+'∇z')
+        gens_P1.append(z_str+fprod_str+'∂∇z')
         column_to_process=recreduceB(E(z)^(i-(n//k)-1)*z^c*fprod)
-        for m in range(0,k*i-1):
+        for m in range(0,Fprec-1):
             m=ZZ(m)
             a=m.mod(k)
             b=W(m//k)
@@ -740,10 +766,10 @@ def syntomic_matrices(p,i,k,E,prec,Fprec,nablaP_OK=False,debug=False):
     if nablaP_OK==False:
         nablaP_OK=nablaP_matrix_OK(p,i,k,E,prec,Fprec,debug=debug)
    
-    OKtoOKmodpi0=Matrix(W,k*i-1,k*i-1)
-    for n in range(1,i*k):
+    OKtoOKmodpi0=Matrix(W,Fprec-1,Fprec-1)
+    for n in range(1,Fprec):
         column_to_process=recreduceB(B(z^n))
-        for m in range(1,i*k):
+        for m in range(1,Fprec):
             m=ZZ(m)
             a=m.mod(k)
             b=W(m//k)
@@ -753,10 +779,10 @@ def syntomic_matrices(p,i,k,E,prec,Fprec,nablaP_OK=False,debug=False):
             coefficient_to_process=column_to_process.monomial_coefficient(gprod)
             OKtoOKmodpi0[m-1,n-1]=coefficient_to_process[a]
 
-    OKtoOKmodpi1=Matrix(W,k*i-1,k*i-1)
-    for n in range(0,k*i-1):
+    OKtoOKmodpi1=Matrix(W,Fprec-1,Fprec-1)
+    for n in range(0,Fprec-1):
         column_to_process=recreduceB(B(z^n))
-        for m in range(0,k*i-1):
+        for m in range(0,Fprec-1):
             m=ZZ(m)
             a=m.mod(k)
             b=W(m//k)
@@ -778,7 +804,7 @@ def syntomic_matrices(p,i,k,E,prec,Fprec,nablaP_OK=False,debug=False):
     # Compute syn1 by completing the square.
     syn0,syn1,nablaN,nablaP=square_complete_right(syn0,nablaN,nablaP)
 
-    return syn0,syn1,nablaN,nablaP
+    return syn0,syn1,nablaN,nablaP,gens_N0,gens_P0,gens_N1,gens_P1
 
 
 def v1_matrices(p,i,k,E,prec,Fprec,debug=False):
@@ -786,14 +812,14 @@ def v1_matrices(p,i,k,E,prec,Fprec,debug=False):
     if i-p+1<=0:
         raise NotImplementedError
     B,C,fvars,weightB,phiBtilde,phi_dividedB,deltaBtilde,reduceB,recreduceB,recreduceN=prismatic_envelope_f(p,E,k,prec,Fprec,debug=debug)
-    if i==1:
+    if (Fprec-1)//k==0:
         num_f=0
     else:
-        num_f=floor(log(i-1,p))+1
+        num_f=floor(log((Fprec-1)//k,p))+1
 
     # v1_on_P0 builder
-    v1P0=Matrix(W,k*i-1,k*(i-p+1)-1)
-    for n in range(1,(i-p+1)*k):
+    v1P0=Matrix(W,Fprec-1,Fprec-1)
+    for n in range(1,Fprec):
         n=ZZ(n)
         c=n.mod(k)
         d=W(n//k)
@@ -802,7 +828,7 @@ def v1_matrices(p,i,k,E,prec,Fprec,debug=False):
             fprod=fprod*fvars[j]^(d[j])
         # We use c+1 to denote that we've multiplied by 'z^p'.
         column_to_process=recreduceB(z^(c+p)*fprod)
-        for m in range(1,i*k):
+        for m in range(1,Fprec):
             m=ZZ(m)
             a=m.mod(k)
             b=W(m//k)
@@ -814,8 +840,8 @@ def v1_matrices(p,i,k,E,prec,Fprec,debug=False):
         print('\n')
 
     # v1_on_N0 builder
-    v1N0=Matrix(W,k*i-1,k*(i-p+1)-1)
-    for n in range(1,(i-p+1)*k):
+    v1N0=Matrix(W,Fprec-1,Fprec-1)
+    for n in range(1,Fprec):
         n=ZZ(n)
         c=n.mod(k)
         d=W(n//k)
@@ -829,7 +855,7 @@ def v1_matrices(p,i,k,E,prec,Fprec,debug=False):
         column_to_process=B(0)
         for cffcnt in reduced_form.coefficients():
             column_to_process+=B(cffcnt)
-        for m in range(1,i*k):
+        for m in range(1,Fprec):
             m=ZZ(m)
             a=m.mod(k)
             b=W(m//k)
@@ -840,8 +866,8 @@ def v1_matrices(p,i,k,E,prec,Fprec,debug=False):
             v1N0[m-1,n-1]=coefficient_to_process[a]
 
     # v1_on_P1 builder
-    v1P1=Matrix(W,k*i-1,k*(i-p+1)-1)
-    for n in range(0,(i-p+1)*k-1):
+    v1P1=Matrix(W,Fprec-1,Fprec-1)
+    for n in range(0,Fprec-1):
         n=ZZ(n)
         c=n.mod(k)
         d=W(n//k)
@@ -850,7 +876,7 @@ def v1_matrices(p,i,k,E,prec,Fprec,debug=False):
             fprod=fprod*fvars[j]^(d[j])
         # We use c+1 to denote that we've multiplied by 'z^p'.
         column_to_process=recreduceB(z^(c+p)*fprod)
-        for m in range(0,i*k-1):
+        for m in range(0,Fprec-1):
             m=ZZ(m)
             a=m.mod(k)
             b=W(m//k)
@@ -861,8 +887,8 @@ def v1_matrices(p,i,k,E,prec,Fprec,debug=False):
             v1P1[m,n]=coefficient_to_process[a]
 
     # v1_on_N1 builder
-    v1N1=Matrix(W,k*i-1,k*(i-p+1)-1)
-    for n in range(0,(i-p+1)*k-1):
+    v1N1=Matrix(W,Fprec-1,Fprec-1)
+    for n in range(0,Fprec-1):
         n=ZZ(n)
         c=n.mod(k)
         d=W(n//k)
@@ -874,7 +900,7 @@ def v1_matrices(p,i,k,E,prec,Fprec,debug=False):
         column_to_process=B(0)
         for cffcnt in reduced_form.coefficients():
             column_to_process+=B(cffcnt)
-        for m in range(0,i*k-1):
+        for m in range(0,Fprec-1):
             m=ZZ(m)
             a=m.mod(k)
             b=W(m//k)
@@ -885,287 +911,6 @@ def v1_matrices(p,i,k,E,prec,Fprec,debug=False):
             v1N1[m,n]=coefficient_to_process[a]
 
     return v1N0,v1P0,v1N1,v1P1
-
-###########
-# Old v1. #
-###########
-
-def syntomic_matrices_v1(p,i,k,E,prec,Fprec,debug=False):
-    # WARNING: this is not correct.
-    if i-p+1<=0:
-        raise NotImplementedError
-    B,C,fvars,weightB,phiBtilde,phi_dividedB,deltaBtilde,reduceB,recreduceB,recreduceN=prismatic_envelope_f(p,E,k,prec,Fprec,debug=debug)
-    if i==1:
-        num_f=0
-    else:
-        num_f=floor(log(i-1,p))+1
-
-    # First compute in weight i.
-
-    # Basis z^c\prod_{j=0}^{num_f-1}f_j^{a_j}, 0<=a_j<=p-1, 0<=c<=k-1 with one exception: no 1.
-
-    # can0 builder
-    b_can0=Matrix(W,k*i-1,k*i-1)
-    for n in range(1,i*k):
-        n=ZZ(n)
-        c=n.mod(k)
-        d=W(n//k)
-        fprod=B(1)
-        for j in range(num_f):
-            fprod=fprod*fvars[j]^(d[j])
-        column_to_process=recreduceB(E(z)^(i-(n//k))*z^c*fprod)
-        for m in range(1,i*k):
-            m=ZZ(m)
-            a=m.mod(k)
-            b=W(m//k)
-            gprod=B(1)
-            for j in range(num_f):
-                gprod=gprod*fvars[j]^(b[j])
-            coefficient_to_process=column_to_process.monomial_coefficient(gprod)
-            b_can0[m-1,n-1]=coefficient_to_process[a]
-
-    if debug:
-        print("b_can0:")
-        print(b_can0)
-        print('\n')
-
-    # phi0 builder
-    b_phi0=Matrix(W,k*i-1,k*i-1)
-    for n in range(1,i*k):
-        n=ZZ(n)
-        c=n.mod(k)
-        d=W(n//k)
-        fprod=B(1)
-        for j in range(num_f):
-            fprod=fprod*fvars[j]^(d[j])
-        column_to_process=recreduceB(z^(p*c)*phi_dividedB(fprod))
-        for m in range(1,i*k):
-            m=ZZ(m)
-            a=m.mod(k)
-            b=W(m//k)
-            gprod=B(1)
-            for j in range(num_f):
-                gprod=gprod*fvars[j]^(b[j])
-            coefficient_to_process=column_to_process.monomial_coefficient(gprod)
-            b_phi0[m-1,n-1]=coefficient_to_process[a]
-
-    # can1 builder
-    # Same as above but with basis starting with 1 and going up to z^{k-2}*num_f or z^{k-1}f_{prec-1}
-    # Does not make great sense for k=1.
-    b_can1=Matrix(W,k*i-1,k*i-1)
-    for n in range(0,k*i-1):
-        n=ZZ(n)
-        c=n.mod(k)
-        d=W(n//k)
-        fprod=B(1)
-        for j in range(num_f):
-            fprod=fprod*fvars[j]^(d[j])
-        column_to_process=recreduceB(E(z)^(i-(n//k)-1)*z^c*fprod)
-        for m in range(0,k*i-1):
-            m=ZZ(m)
-            a=m.mod(k)
-            b=W(m//k)
-            gprod=B(1)
-            for j in range(num_f):
-                gprod=gprod*fvars[j]^(b[j])
-            coefficient_to_process=column_to_process.monomial_coefficient(gprod)
-            b_can1[m,n]=coefficient_to_process[a]
-
-    if debug:
-        print('b_can1:')
-        print(b_can1)
-        print('\n')
-
-    b_nablaP_OK=nablaP_matrix_OK(p,i,k,E,prec,Fprec,debug=debug)
-   
-    b_OKtoOKmodpi0=Matrix(W,k*i-1,k*i-1)
-    for n in range(1,i*k):
-        column_to_process=recreduceB(B(z^n))
-        for m in range(1,i*k):
-            m=ZZ(m)
-            a=m.mod(k)
-            b=W(m//k)
-            gprod=B(1)
-            for j in range(num_f):
-                gprod=gprod*fvars[j]^(b[j])
-            coefficient_to_process=column_to_process.monomial_coefficient(gprod)
-            b_OKtoOKmodpi0[m-1,n-1]=coefficient_to_process[a]
-
-    b_OKtoOKmodpi1=Matrix(W,k*i-1,k*i-1)
-    for n in range(0,k*i-1):
-        column_to_process=recreduceB(B(z^n))
-        for m in range(0,k*i-1):
-            m=ZZ(m)
-            a=m.mod(k)
-            b=W(m//k)
-            gprod=B(1)
-            for j in range(num_f):
-                gprod=gprod*fvars[j]^(b[j])
-            coefficient_to_process=column_to_process.monomial_coefficient(gprod)
-            b_OKtoOKmodpi1[m,n]=coefficient_to_process[a]
-    
-    # Given nablaP for OK, compute it for OK/pi^k.
-    b_OKtoOKmodpi0,b_OKtoOKmodpi1,b_nablaP_OK,b_nablaP=square_complete_bottom(b_OKtoOKmodpi0,b_OKtoOKmodpi1,b_nablaP_OK)
-
-    # The relative syntomic matrix.
-    b_syn0=b_can0-b_phi0
-
-    # Compute nablaN for OK/pi^k.
-    b_can0,b_can1,b_nablaN,b_nablaP=square_complete_top(b_can0,b_can1,b_nablaP)
-
-    # Compute syn1 by completing the square.
-    b_syn0,b_syn1,b_nablaN,b_nablaP=square_complete_right(b_syn0,b_nablaN,b_nablaP)
-
-    # Then, compute in weight i-p+1.
-    i=i-p+1
-
-    # Basis z^c\prod_{j=0}^{num_f-1}f_j^{a_j}, 0<=a_j<=p-1, 0<=c<=k-1 with one exception: no 1.
-
-    # can0 builder
-    a_can0=Matrix(W,k*i-1,k*i-1)
-    for n in range(1,i*k):
-        n=ZZ(n)
-        c=n.mod(k)
-        d=W(n//k)
-        fprod=B(1)
-        for j in range(num_f):
-            fprod=fprod*fvars[j]^(d[j])
-        column_to_process=recreduceB(E(z)^(i-(n//k))*z^c*fprod)
-        for m in range(1,i*k):
-            m=ZZ(m)
-            a=m.mod(k)
-            b=W(m//k)
-            gprod=B(1)
-            for j in range(num_f):
-                gprod=gprod*fvars[j]^(b[j])
-            coefficient_to_process=column_to_process.monomial_coefficient(gprod)
-            a_can0[m-1,n-1]=coefficient_to_process[a]
-
-    if debug:
-        print("a_can0:")
-        print(a_can0)
-        print('\n')
-
-    # phi0 builder
-    a_phi0=Matrix(W,k*i-1,k*i-1)
-    for n in range(1,i*k):
-        n=ZZ(n)
-        c=n.mod(k)
-        d=W(n//k)
-        fprod=B(1)
-        for j in range(num_f):
-            fprod=fprod*fvars[j]^(d[j])
-        column_to_process=recreduceB(z^(p*c)*phi_dividedB(fprod))
-        for m in range(1,i*k):
-            m=ZZ(m)
-            a=m.mod(k)
-            b=W(m//k)
-            gprod=B(1)
-            for j in range(num_f):
-                gprod=gprod*fvars[j]^(b[j])
-            coefficient_to_process=column_to_process.monomial_coefficient(gprod)
-            a_phi0[m-1,n-1]=coefficient_to_process[a]
-
-    # can1 builder
-    # Same as above but with basis starting with 1 and going up to z^{k-2}*num_f or z^{k-1}f_{prec-1}
-    # Does not make great sense for k=1.
-    a_can1=Matrix(W,k*i-1,k*i-1)
-    for n in range(0,k*i-1):
-        n=ZZ(n)
-        c=n.mod(k)
-        d=W(n//k)
-        fprod=B(1)
-        for j in range(num_f):
-            fprod=fprod*fvars[j]^(d[j])
-        column_to_process=recreduceB(E(z)^(i-(n//k)-1)*z^c*fprod)
-        for m in range(0,k*i-1):
-            m=ZZ(m)
-            a=m.mod(k)
-            b=W(m//k)
-            gprod=B(1)
-            for j in range(num_f):
-                gprod=gprod*fvars[j]^(b[j])
-            coefficient_to_process=column_to_process.monomial_coefficient(gprod)
-            a_can1[m,n]=coefficient_to_process[a]
-
-    if debug:
-        print('a_can1:')
-        print(a_can1)
-        print('\n')
-
-    a_nablaP_OK=nablaP_matrix_OK(p,i,k,E,prec,Fprec,debug=debug)
-   
-    a_OKtoOKmodpi0=Matrix(W,k*i-1,k*i-1)
-    for n in range(1,i*k):
-        column_to_process=recreduceB(B(z^n))
-        for m in range(1,i*k):
-            m=ZZ(m)
-            a=m.mod(k)
-            b=W(m//k)
-            gprod=B(1)
-            for j in range(num_f):
-                gprod=gprod*fvars[j]^(b[j])
-            coefficient_to_process=column_to_process.monomial_coefficient(gprod)
-            a_OKtoOKmodpi0[m-1,n-1]=coefficient_to_process[a]
-
-    a_OKtoOKmodpi1=Matrix(W,k*i-1,k*i-1)
-    for n in range(0,k*i-1):
-        column_to_process=recreduceB(B(z^n))
-        for m in range(0,k*i-1):
-            m=ZZ(m)
-            a=m.mod(k)
-            b=W(m//k)
-            gprod=B(1)
-            for j in range(num_f):
-                gprod=gprod*fvars[j]^(b[j])
-            coefficient_to_process=column_to_process.monomial_coefficient(gprod)
-            a_OKtoOKmodpi1[m,n]=coefficient_to_process[a]
-    
-    # Given nablaP for OK, compute it for OK/pi^k.
-    a_OKtoOKmodpi0,a_OKtoOKmodpi1,a_nablaP_OK,a_nablaP=square_complete_bottom(a_OKtoOKmodpi0,a_OKtoOKmodpi1,a_nablaP_OK)
-
-    # The relative syntomic matrix.
-    a_syn0=a_can0-a_phi0
-
-    # Compute nablaN for OK/pi^k.
-    a_can0,a_can1,a_nablaN,a_nablaP=square_complete_top(a_can0,a_can1,a_nablaP)
-
-    # Compute syn1 by completing the square.
-    a_syn0,a_syn1,a_nablaN,a_nablaP=square_complete_right(a_syn0,a_nablaN,a_nablaP)
-
-    # Now, reset i.
-    i=i+p-1
-
-    # v1_on_P0 builder
-    v1P0=Matrix(W,k*i-1,k*(i-p+1)-1)
-    for n in range(1,(i-p+1)*k):
-        n=ZZ(n)
-        c=n.mod(k)
-        d=W(n//k)
-        fprod=B(1)
-        for j in range(num_f):
-            fprod=fprod*fvars[j]^(d[j])
-        # We use c+1 to denote that we've multiplied by 'z^p'.
-        column_to_process=recreduceB(z^(c+p)*fprod)
-        for m in range(1,i*k):
-            m=ZZ(m)
-            a=m.mod(k)
-            b=W(m//k)
-            gprod=B(1)
-            for j in range(num_f):
-                gprod=gprod*fvars[j]^(b[j])
-            coefficient_to_process=column_to_process.monomial_coefficient(gprod)
-            v1P0[m-1,n-1]=coefficient_to_process[a]
-
-    print(a_can0)
-    print(b_can0)
-    print(v1P0)
-
-    a_can0,b_can0,v1N0,v1P0=square_complete_top(a_can0,b_can0,v1P0)
-    a_nablaP,b_nablaP,v1P1,v1P0=square_complete_bottom(a_nablaP,b_nablaP,v1P0)
-    a_nablaN,b_nablaN,v1N1,v1N0=square_complete_bottom(a_nablaN,b_nablaN,v1N0)
-
-    return a_syn0,a_syn1,a_nablaN,a_nablaP,b_syn0,b_syn1,b_nablaN,b_nablaP,v1N0,v1P0,v1N1,v1P1
 
 
            

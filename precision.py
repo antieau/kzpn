@@ -80,3 +80,41 @@ def matrix_precision(matrix):
 def matrix_valuation(matrix):
     """Returns the minimum valuation of the entries in matrix."""
     return min(entry.my_valuation() for entry in matrix.coefficients())
+
+def target_total_precision(p,i,n):
+    # The calculated F-precision needed to compute at this weight
+    Fprec=n*i
+
+    # The target precision
+    target_precision=nygaard_exponent(p,i,n)
+
+    ####################
+    # Precision losses #
+    ####################
+
+    ### From \delta
+    precision_loss_delta=math.floor(math.log(Fprec-1,p))
+
+    ### From passing from OK to OK/pi^n
+    precision_loss_quotient=0
+    for q in range(p,i):
+        precision_loss_quotient+=n*valuation(p,math.factorial(q))
+
+    ### From lifting nabla to Nygaard
+    precision_loss_nygaard=n*math.floor(i*(i-1)/2)
+
+    ### From computing can-phi on primitives
+    precision_loss_primitives=target_precision
+
+    ### From renormalizing the Eisenstein polynomial
+    precision_loss_from_Eisenstein=1
+
+    ### Probably this precision can be taken to be lower since we will only need the
+    ### Fp-coefficient calculation
+    total_precision=(target_precision+precision_loss_delta
+                     +precision_loss_quotient
+                     +precision_loss_nygaard
+                     +precision_loss_primitives
+                     +precision_loss_from_Eisenstein) 
+    
+    return Fprec,total_precision
