@@ -84,7 +84,18 @@ def prismatic_envelope_f(p,E,k,prec,Fprec,debug=False):
         print("fvars_phitilde:")
         print(fvars_phitilde)
         print('\n')
-    
+
+    p_powers=[p^j for j in range(num_f)]
+
+    def monomial_weight(m):
+        """The weight of a monomial.
+
+        Returns a tuple (F-weight,N-weight), where F-weight is the exact F-weight
+        and N-weight is the exact Nygaard weight of a monomial in the f_i.
+        """
+        monomial_nygaard_weight=sum([a*b for a,b in zip(p_powers,list(m.degrees()))])
+        return (k*monomial_nygaard_weight,monomial_nygaard_weight)
+   
     def weight(funct):
         """The weight of a function.
 
@@ -97,18 +108,9 @@ def prismatic_envelope_f(p,E,k,prec,Fprec,debug=False):
         if num_f==0:
             nygaard_weight=0
         else:
+            # Does this make sense?!?
             nygaard_weight=p^(num_f-1)
-        p_powers=[p^j for j in range(num_f)]
-        
-        def monomial_weight(m):
-            """The weight of a monomial.
-
-            Returns a tuple (F-weight,N-weight), where F-weight is the exact F-weight
-            and N-weight is the exact Nygaard weight of a monomial in the f_i.
-            """
-            monomial_nygaard_weight=sum([a*b for a,b in zip(p_powers,list(m.degrees()))])
-            return (k*monomial_nygaard_weight,monomial_nygaard_weight)
-        
+                
         for m in funct.monomials():
             f_weight,w=monomial_weight(m)
             # c is a power series in z.
@@ -258,7 +260,7 @@ def prismatic_envelope_f(p,E,k,prec,Fprec,debug=False):
         for m in funct.monomials():
             m_coefficient=funct.monomial_coefficient(m)
             for t in m_coefficient.monomials():
-                a=min(weight(B(t))[1]+m.degree()-target_nygaard_weight,m.degree())
+                a=min(monomial_weight(B(t))[1]+m.degree()-target_nygaard_weight,m.degree())
                 new_funct+=m_coefficient.monomial_coefficient(t)*E^a*t*d_tilde^(m.degree()-a)
         return new_funct
 
@@ -809,6 +811,7 @@ def v1_matrices(p,i,k,E,prec,Fprec,debug=False):
                 gprod=gprod*fvars[j]^(b[j])
             coefficient_to_process=column_to_process.monomial_coefficient(gprod)
             v1P0[m-1,n-1]=coefficient_to_process[a]
+        print('\n')
 
     # v1_on_N0 builder
     v1N0=Matrix(W,k*i-1,k*(i-p+1)-1)
@@ -820,7 +823,9 @@ def v1_matrices(p,i,k,E,prec,Fprec,debug=False):
         for j in range(num_f):
             fprod=fprod*fvars[j]^(d[j])
         # We use c+1 to denote that we've multiplied by 'z^p'.
+        print(C(z^c*fprod)*d_tilde^(i-p+1-(n//k)+p))
         reduced_form=recreduceN(i,C(z^c*fprod)*d_tilde^(i-p+1-(n//k)+p))
+        print(reduced_form)
         column_to_process=B(0)
         for cffcnt in reduced_form.coefficients():
             column_to_process+=B(cffcnt)
@@ -864,16 +869,11 @@ def v1_matrices(p,i,k,E,prec,Fprec,debug=False):
         fprod=B(1)
         for j in range(num_f):
             fprod=fprod*fvars[j]^(d[j])
-        print("fprod and c are {} and {}".format(fprod,c))
         # We use c+1 to denote that we've multiplied by 'z^p'.
-        print("input is {}".format(C(z^c*fprod)*d_tilde^(i-p-(n//k)+p)))
         reduced_form=recreduceN(i-1,C(z^c*fprod)*d_tilde^(i-p-(n//k)+p))
-        print("reduced_form is {}".format(reduced_form))
         column_to_process=B(0)
         for cffcnt in reduced_form.coefficients():
             column_to_process+=B(cffcnt)
-        print(column_to_process)
-        print('\n')
         for m in range(0,i*k-1):
             m=ZZ(m)
             a=m.mod(k)
@@ -881,9 +881,7 @@ def v1_matrices(p,i,k,E,prec,Fprec,debug=False):
             gprod=B(1)
             for j in range(num_f):
                 gprod=gprod*fvars[j]^(b[j])
-            print("gprod and a are {} and {}".format(gprod,a))
             coefficient_to_process=column_to_process.monomial_coefficient(gprod)
-            print("coefficient to process is {}".format(coefficient_to_process))
             v1N1[m,n]=coefficient_to_process[a]
 
     return v1N0,v1P0,v1N1,v1P1
