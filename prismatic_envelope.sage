@@ -15,7 +15,6 @@ and the base Breuil-Kisin ring A are in the namespace.
 
 def eisenstein_normalization(p,E):
     """Renormalizes Eisenstein polynomial.
-
     Takes an Eisenstein poylnomial E(z)=...+pu and returns (1/u)*E so that the constant term is
     +p.
     """
@@ -887,7 +886,7 @@ def v1_matrices(p,i,k,E,prec,Fprec,debug=False):
             print("coefficient to process is {}".format(coefficient_to_process))
             v1N1[m,n]=coefficient_to_process[a]
 
-        return v1N0,v1P0,v1N1,v1P1
+    return v1N0,v1P0,v1N1,v1P1
 
 ###########
 # Old v1. #
