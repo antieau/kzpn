@@ -359,6 +359,294 @@ def prismatic_envelope_f(p,E,k,prec,Fprec,debug=False):
     return B,C,fvars,weight,phitilde,phi_divided,deltatilde,reduce,recursive_reduce,recreduce_nygaard
 
 
+class PrismaticEnvelopeG():
+    def __init__(self,A,p,E,k,prec,Fprec,debug=False):
+        self.z = A(A.variable_names()[0])
+        self.A = A   
+        self.p = p
+        self.E = E
+        self.k = k
+        self.prec = prec
+        self.Fprec = Fprec
+        self.compute_prismatic_envelope()
+        self.compute_bk_unit()
+    def compute_prismatic_envelope(self):
+        A0.<d>=PolynomialRing(self.A)
+        self.d = d
+        #A0.inject_variables(verbose=False)
+        self.num_g=floor(log(self.Fprec-1,p))+1
+        if self.num_g==1:
+            self.ring=PolynomialRing(A0,'g0')
+        else:
+            self.ring=PolynomialRing(A0,'g',self.num_g)
+        #C.inject_variables(verbose=False)
+        variable_names=self.ring.variable_names()
+        # A list of the gi for ease of reference.
+        self.g=[]
+        for name in variable_names:
+            self.g.append(self.ring(name))
+        self.g_phitilde=[]
+        for j in range(len(self.g)-1):
+            self.g_phitilde.append(self.g[j]^p+p*self.g[j+1])
+        # At the last stop, the delta term is beyond the g-precision
+        # so it is not added.
+        self.g_phitilde.append(self.ring(0))
+    
+        # Gently coerce E into C. Occasionally, z is replaced by d otherwise, which
+        # leads to nonsense.
+        self.E_C=self.ring(self.A(self.E))
+
+        #start building relations
+        self.rels=[]
+        if self.num_g==1:
+            self.rels.append(self.g[0]^self.p)
+        else:
+            # This time, the relations from Lemma 4.9 of KZPN [REF] are more complicated.
+            if self.p==2:
+                self.rels.append(self.trim(self.phitilde(self.E_C)*self.g[1]+(self.deltatilde(self.E_C)+self.E_C^2)*self.g[0]^2-z*self.E_C*self.d*self.g[0]))
+            else:
+                new_rel=self.phitilde(self.E_C)*self.g[1]+self.deltatilde(self.E_C)*self.g[0]^self.p
+                for j in range(1,self.p):
+                    new_rel+=(-1)^(j+1)*(binomial(self.p,j)//self.p)*self.z^j*self.E_C^(self.p-j)*self.d^j*self.g[0]^(self.p-j)
+                self.rels.append(self.trim(new_rel))
+            for s in range(1,self.num_g-1):
+                self.rels.append(self.trim(self.deltatilde(self.rels[s-1])))
+            self.rels.append(self.g[self.num_g-1]^self.p)
+
+        #if debug:
+        #    print("rels in prismatic_envelope_g:")
+        #    print(rels)
+        #    print('\n')
+            
+        # new_rels is a lookup table for how to rewrite g_j^p in terms of other factors.
+        if self.num_g==1:
+            new_rels=self.rels
+        else:
+            new_rels=[]
+            for j in range(len(self.rels)):
+                r=self.ring(self.rels[j])
+                u=r.monomial_coefficient(self.g[j]^self.p)
+                u=self.A(u)
+                new_rels.append(self.trim(self.g[j]^self.p-(1/u)*r))
+
+        #if debug:
+        #    print("new_rels before reduction in prismatic_envelope_g:")
+        #    print(new_rels)
+        #    print('\n')
+        # Now, reduce new_rels by rewriting all d's by E(z), since we're done with delta_tilde:
+        for j in range(len(new_rels)):
+            new_rels[j]=self.reduce_d(new_rels[j])   
+        self.rels = new_rels
+    
+        # Now, we reduce the relations in new_rels, using themselves.
+        # We don't do this using recursive_reduce below,
+        # since in every step we can overwrite the previous new_rels to speed up convergence
+        for j in range(len(self.rels)):
+            prev_value=self.rels[j]
+            self.rels[j]=self.reduce(self.ring(prev_value))
+            while prev_value != self.rels[j]:
+                prev_value=self.rels[j]
+                self.rels[j]=self.reduce(self.ring(prev_value))
+
+        #if debug:
+        #    print("new_rels in prismatic_envelope_g:")
+        #    print(self.rels)
+        #    print('\n')
+        self.initialize_gvars_phi()
+      
+    def weight(self,funct):
+        """Returns a tuple of weights.
+
+        Returns a tuple (F-weight,N-weight), where F-weight is the exact (up to precision) F-weight
+        and N-weight is a *lower bound* on the Nygaard weight of f.
+        For example, this function will not correctly compute the Nygaard weight E(z), although
+        it will of d.
+        """
+        nygaard_weight=p^(self.num_g-1)
+        f_weight=self.Fprec
+        p_powers=[self.p^j for j in range(self.num_g)]
+        
+        def monomial_weight(m):
+            """Returns the Nygaard weight of a monomial in the gj."""
+            monomial_nygaard_weight=sum([a*b for a,b in zip(p_powers,list(m.degrees()))])
+            return (monomial_nygaard_weight,monomial_nygaard_weight)
+        
+        for m in funct.monomials():
+            monomial_f_weight,monomial_nygaard_weight=monomial_weight(m)
+            # c is a polynomial in d on power series in z.
+            c=funct.monomial_coefficient(m)
+            coefficient_nygaard_weight=self.p^(self.num_g-1)
+            coefficient_f_weight=self.Fprec
+            deg=c.degree(self.d)
+           
+            for n in c.monomials():
+                x=c.monomial_coefficient(n)
+                v=x.valuation()
+                coefficient_nygaard_weight=min(coefficient_nygaard_weight,n.degree(self.d))
+                coefficient_f_weight=min(coefficient_f_weight,v)
+            nygaard_weight=min(nygaard_weight,monomial_nygaard_weight+coefficient_nygaard_weight)
+            f_weight=min(f_weight,monomial_f_weight+coefficient_f_weight)
+        
+        return (f_weight,nygaard_weight)
+    
+    def phitilde(self,funct): 
+        g=0
+        for m in funct.monomials():
+            c=funct.monomial_coefficient(m)
+            h=0
+            # Iterate over powers n of d.
+            for n in c.monomials():
+                x=c.monomial_coefficient(n)
+                h+=x.V(self.p)*n^self.p
+            g+=self.ring(m(self.g_phitilde)*h)
+        return g
+    
+    def deltatilde(self,funct):
+        return (self.ring(self.phitilde(funct)-funct^p))*(1/p)
+
+    def trim(self,funct):
+        """Trim function.
+
+        Here, we use the fact that we have a fixed z-precision and the g_j secretly
+        have z-weight p^j. So, we can trim lots of information.
+        """
+        trimmed=0
+        for m in funct.monomials():
+            w=self.weight(m)[0]
+            new_coefficient=0
+            c=funct.monomial_coefficient(m)
+            for n in c.monomials():
+                to_trim=c.monomial_coefficient(n).add_bigoh(max(self.Fprec-w,0))
+                new_coefficient+=to_trim*n
+            trimmed+=new_coefficient*m
+        return self.ring(trimmed)
+    
+    
+    def coefficient_divide(self,funct,gunct):
+        """Takes a polynomial gunct in the d,gj and divides all the coefficients by funct."""
+        out=0
+        for m in gunct.monomials():
+            for n in gunct.monomial_coefficient(m).monomials():
+                (f_weight,nygaard_weight)=self.weight(n*m)
+                out+=lazy_division(funct,(gunct.monomial_coefficient(m)).monomial_coefficient(n),self.Fprec-f_weight)*n*m
+        return out
+    
+    def coefficient_reduce(self,c):
+        """Reduces coefficient
+
+        Takes a coefficient (a polynomial in d with coefficients in power series in z)
+        and returns an element of C obtained by using d=E
+        """
+        new_coefficient=0
+        for n in c.monomials():
+            new_coefficient+=c.monomial_coefficient(n)*self.E_C^(n.degree(self.d))
+        return new_coefficient    
+
+    def reduce_d(self,funct):
+        reduced=0
+        for m in funct.monomials():
+            reduced+=self.coefficient_reduce(funct.monomial_coefficient(m))*m
+        return self.trim(self.ring(reduced))
+    
+    
+    def reduce(self,funct):
+        """Run through the monomials of g and rewrite them once using new_rels.
+
+        assumes they are already reduce_d'd.
+        """
+        reduced=0
+        for m in funct.monomials():
+            new_monomial=1
+            degs=m.degrees()
+            for exponent in range(len(degs)):
+                r=degs[exponent]//self.p
+                new_monomial=new_monomial*self.rels[exponent]^r*self.g[exponent]^(degs[exponent]-self.p*r)
+            reduced+=funct.monomial_coefficient(m)*new_monomial
+        reduced=self.trim(self.ring(reduced))                
+        return reduced
+    
+    def recursive_reduce(self,funct):
+        """Recursively reduces an arbitrary expression using reduce_d and the reduced new_rels."""
+        funct=self.reduce_d(funct)
+        prevFunct=funct
+        funct=self.reduce(self.ring(funct))
+        while prevFunct != funct:
+            prevFunct = funct
+            funct=self.reduce(self.ring(funct))
+        return funct
+    
+    def recursive_reduce_mod_p(self,funct):
+        red = self.recursive_reduce(self.ring(funct))
+        result = 0
+        for m in red.monomials():
+            coeff1 = red.monomial_coefficient(m)
+            for m2 in coeff1.monomials():
+                coeff2 = coeff1.monomial_coefficient(m2)
+                coeff2 = coeff2.map_coefficients(lambda x: x % self.p)
+                result += coeff2 * m2 * m
+        return result
+    
+    def initialize_gvars_phi(self):
+        """phi(g_j) = phi(E(z))^{p^j} * (g_j^p+p g_{j+1})/E(z)^{p^{j+1}}"""
+        self.g_phi=[]
+        for j in range(len(self.g)):
+            X=self.phitilde(self.E_C)^(self.p^j)*self.phitilde(self.g[j])
+            X=self.recursive_reduce(X)
+            self.g_phi.append(self.coefficient_divide(self.A(self.E)^(self.p^(j+1)),X))
+
+    def phi(self,funct):
+        g=0
+        for m in funct.monomials():
+            c=funct.monomial_coefficient(m)
+            h=0
+            # Iterate over powers n of d.
+            for n in c.monomials():
+                x=c.monomial_coefficient(n)
+                deg=n.degree(d)
+                h+=x.V(self.p)*self.ring(self.E(self.z^self.p))^deg
+            g+=self.ring(m(self.g_phi)*h)
+        return g
+    
+    def delta(self,funct):
+        return (self.recursive_reduce(self.ring(self.phi(funct)-funct^self.p)))*(1/self.p)
+    
+    def g0_divide(self,funct):
+        """In a polynomial of the form g0*F(g0) returns F(g0)."""
+        divided_funct=0
+        for m in funct.monomials():
+            degs=list(m.degrees())
+            if degs[0]==0:
+                raise TypeError('Cannot divide by g0.')
+            else:
+                degs[0]=degs[0]-1
+                divided_funct+=funct.monomial_coefficient(m)*self.ring.monomial(*tuple(degs))
+        return divided_funct
+
+    def compute_bk_unit(self):
+        # Takes almost no time.
+        if len(self.g)==1:
+            divided_g0=self.g[0]^self.p
+        else:
+            divided_g0=(self.g[0]^self.p+self.p*self.g[1])
+        divided_g0=self.recursive_reduce(divided_g0)
+        divided_g0=self.coefficient_divide(self.A(self.E)^self.p,divided_g0)
+        divided_E=self.ring(self.E(self.z)-self.E(self.z-self.g[0]))
+        divided_E=self.g0_divide(divided_E)
+        divided_E=self.recursive_reduce(divided_E)
+
+        u=self.ring(1-self.phi(divided_E)*divided_g0)
+        u=self.recursive_reduce(u)
+
+        self.v=u
+        while True:
+            funct=self.recursive_reduce(u*self.phi(self.v))
+            if funct==self.v:
+                break
+            else:
+                self.v=funct
+
+
+
     
 def prismatic_envelope_g(p,E,k,prec,Fprec,debug=False):
     """For working with O_K.
