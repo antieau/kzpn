@@ -93,6 +93,9 @@ class Homology():
             return []
         h = self.homology_orders[i]
         return self.g_dict[i].submatrix(0,self.g_dict[i].ncols() - len(h))
+    def compute_cycle(self,i,v):
+        mat = self.compute_homology_representatives(i)
+        return mat*v
 
 class MorphismHomology():
     def __init__(self, hA, hB, F):

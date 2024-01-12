@@ -34,9 +34,6 @@ class SyntomicComplex:
             self.homology_mod_p_generators[k]=[]
             for t in range(v.ncols()):
                 gen_name=self.name_element(k,v.column(t))
-                #for s in range(v.nrows()):
-                #    if v[s,t] != 0:
-                #        gen_name+='+'+str(v[s,t])+'*'+self.gens[k][s]
                 self.homology_mod_p_generators[k].append(gen_name)
         self.mod_p_homology_computed=True
     def name_element(self,deg,coeffs):
@@ -49,9 +46,18 @@ class SyntomicComplex:
         else:
             gens = self.gens[deg]
         result = ''
+        first_term=True
         for i in range(len(coeffs)):
-            if coeffs[i]!=0:
-                result += '+'+str(coeffs[i])+'*'+gens[i]
+            if coeffs[i]==0:
+                continue
+            if not first_term:
+                result += '+'
+            first_term=False
+            if coeffs[i]!=1: 
+                result += str(coeffs[i])+'*'
+            result += gens[i]
+        if first_term:
+            result = '0'
         result += '+O(F>={})'.format(self.Fprec)
         return result
     def nablaN_value(self,k):
@@ -905,7 +911,6 @@ def v1_matrices(p,i,k,E,prec,Fprec,debug=False):
                 gprod=gprod*fvars[j]^(b[j])
             coefficient_to_process=column_to_process.monomial_coefficient(gprod)
             v1P0[m-1,n-1]=coefficient_to_process[a]
-        print('\n')
 
     # v1_on_N0 builder
     v1N0=Matrix(W,Fprec-1,Fprec-1)
@@ -917,9 +922,7 @@ def v1_matrices(p,i,k,E,prec,Fprec,debug=False):
         for j in range(num_f):
             fprod=fprod*fvars[j]^(d[j])
         number_of_ds = max(i-p+1 - (n//k), 0) #how many factors of d we use to pad to nygaard filtr. i-p+1
-        print(C(z^c*fprod)*d_tilde^(number_of_ds+p))
         reduced_form=recreduceN(i,C(z^c*fprod)*d_tilde^(number_of_ds+p))
-        print(reduced_form)
         column_to_process=B(0)
         for cffcnt in reduced_form.coefficients():
             column_to_process+=B(cffcnt)
