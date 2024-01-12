@@ -1,0 +1,139 @@
+Generators of mod p H^0 (weight 1, Z/2^3):
+
+
+E^1z^2+E^0f0+E^0zf0+O(F>=6)
+
+E^1z+O(F>=6)
+
+v1 action:
+v1*( E^1z^2+E^0f0+E^0zf0+O(F>=6) )
+           = E^1z^2f0+O(F>=6)
+v1*( E^1z+O(F>=6) )
+           = E^2z^2+O(F>=6)
+-------------------------------------
+
+
+Generators of mod p H^0 (weight 2, Z/2^3):
+
+
+E^2z^2+O(F>=9)
+
+E^1z^2f0+E^0z^2f1+O(F>=9)
+
+v1 action:
+v1*( E^2z^2+O(F>=9) )
+           = E^2zf0+O(F>=9)
+v1*( E^1z^2f0+E^0z^2f1+O(F>=9) )
+           = 0+O(F>=9)
+-------------------------------------
+
+
+Generators of mod p H^0 (weight 3, Z/2^3):
+
+
+E^2zf0+O(F>=12)
+
+E^1z^2f1+E^0f0*f1+O(F>=12)
+
+v1 action:
+v1*( E^2zf0+O(F>=12) )
+           = E^3z^2f0+O(F>=12)
+v1*( E^1z^2f1+E^0f0*f1+O(F>=12) )
+           = 0+O(F>=12)
+-------------------------------------
+
+
+Generators of mod p H^0 (weight 4, Z/2^3):
+
+
+E^1z^2f0*f1+O(F>=15)
+
+E^3z^2f0+O(F>=15)
+
+v1 action:
+v1*( E^1z^2f0*f1+O(F>=15) )
+           = 0+O(F>=15)
+v1*( E^3z^2f0+O(F>=15) )
+           = E^2zf0*f1+O(F>=15)
+-------------------------------------
+
+
+Generators of mod p H^0 (weight 5, Z/2^3):
+
+
+E^1z^2f2+E^0f0*f2+O(F>=18)
+
+E^3z^2f1+E^2f0*f1+E^0zf0*f2+O(F>=18)
+
+E^2zf0*f1+O(F>=18)
+
+v1 action:
+v1*( E^1z^2f2+E^0f0*f2+O(F>=18) )
+           = 0+O(F>=18)
+v1*( E^3z^2f1+E^2f0*f1+E^0zf0*f2+O(F>=18) )
+           = E^1z^2f0*f2+O(F>=18)
+v1*( E^2zf0*f1+O(F>=18) )
+           = E^3z^2f0*f1+O(F>=18)
+-------------------------------------
+
+
+Generators of mod p H^0 (weight 6, Z/2^3):
+
+
+E^3z^2f0*f1+O(F>=21)
+
+E^1z^2f0*f2+E^0z^2f1*f2+O(F>=21)
+
+v1 action:
+v1*( E^3z^2f0*f1+O(F>=21) )
+           = 0+O(F>=21)
+v1*( E^1z^2f0*f2+E^0z^2f1*f2+O(F>=21) )
+           = 0+O(F>=21)
+-------------------------------------
+
+
+Generators of mod p H^0 (weight 7, Z/2^3):
+
+
+E^3z^2f2+E^2f0*f2+O(F>=24)
+
+E^1z^2f1*f2+E^0f0*f1*f2+O(F>=24)
+
+E^4zf0*f1+E^2zf0*f2+E^0zf0*f1*f2+O(F>=24)
+
+E^2zf0*f2+E^1zf1*f2+O(F>=24)
+
+v1 action:
+v1*( E^3z^2f2+E^2f0*f2+O(F>=24) )
+           = 0+O(F>=24)
+v1*( E^1z^2f1*f2+E^0f0*f1*f2+O(F>=24) )
+           = 0+O(F>=24)
+v1*( E^4zf0*f1+E^2zf0*f2+E^0zf0*f1*f2+O(F>=24) )
+           = E^5z^2f0*f1+E^3z^2f0*f2+E^1z^2f0*f1*f2+O(F>=24)
+v1*( E^2zf0*f2+E^1zf1*f2+O(F>=24) )
+           = E^3z^2f0*f2+E^2z^2f1*f2+O(F>=24)
+-------------------------------------
+
+
+Generators of mod p H^0 (weight 8, Z/2^3):
+
+
+E^1z^2f0*f1*f2+O(F>=27)
+
+E^5z^2f0*f1+E^2z^2f1*f2+O(F>=27)
+
+E^4z^2f2+E^2f1*f2+O(F>=27)
+
+E^5z^2f0*f1+E^3z^2f0*f2+O(F>=27)
+
+v1 action:
+v1*( E^1z^2f0*f1*f2+O(F>=27) )
+           = 0+O(F>=27)
+v1*( E^5z^2f0*f1+E^2z^2f1*f2+O(F>=27) )
+           = E^2zf0*f1*f2+O(F>=27)
+v1*( E^4z^2f2+E^2f1*f2+O(F>=27) )
+           = E^4zf0*f2+E^3zf1*f2+O(F>=27)
+v1*( E^5z^2f0*f1+E^3z^2f0*f2+O(F>=27) )
+           = E^2zf0*f1*f2+O(F>=27)
+-------------------------------------
+
