@@ -9,6 +9,71 @@ WARNING: many of the functions in this module assume that the base coefficient r
 and the base Breuil-Kisin ring A are in the namespace.
 """
 
+class SyntomicComplex:
+    def __init__(self,p,i,n,E,total_precision,Fprec,debug=False):
+        self.p = p
+        self.i = i
+        self.n = n
+        self.E = E
+        self.Fprec = Fprec
+        self.gens = {}
+        self.syn0,self.syn1,self.nablaN,self.nablaP,self.gens['N0'],self.gens['P0'],self.gens['N1'],self.gens['P1']=syntomic_matrices(p,i,n,E,total_precision,Fprec,debug=False)
+        d0=block_matrix([[self.syn0],[self.nablaN]])
+        d1=block_matrix([[self.nablaP,-self.syn1]])
+        self.complex=ChainComplex({0:d0,1:d1})
+        self.mod_p_homology_computed = False
+    def compute_mod_p_homology(self):
+        if(self.mod_p_homology_computed):
+            return
+        self.complex_mod_p=ChainComplex({0:Matrix(GF(p),self.complex.differential()[0]),1:Matrix(GF(p),self.complex.differential()[1])})
+        self.homology_mod_p=Homology(self.complex_mod_p)
+        self.homology_mod_p_orders=self.homology_mod_p.homology_orders
+        self.homology_mod_p_dimensions={k:len(v) for k,v in self.homology_mod_p_orders.items()}
+        self.homology_mod_p_generators={}
+        for k,v in self.homology_mod_p.homology_representatives.items():            
+            self.homology_mod_p_generators[k]=[]
+            for t in range(v.ncols()):
+                gen_name=self.name_element(k,v.column(t))
+                #for s in range(v.nrows()):
+                #    if v[s,t] != 0:
+                #        gen_name+='+'+str(v[s,t])+'*'+self.gens[k][s]
+                self.homology_mod_p_generators[k].append(gen_name)
+        self.mod_p_homology_computed=True
+    def name_element(self,deg,coeffs):
+        if deg==0 or deg=='N0':
+            gens = self.gens['N0']
+        elif deg==1:
+            gens = self.gens['P0'] + self.gens['N1']
+        elif deg==2 or deg=='P1':
+            gens = self.gens['P1']
+        else:
+            gens = self.gens[deg]
+        result = ''
+        for i in range(len(coeffs)):
+            if coeffs[i]!=0:
+                result += '+'+str(coeffs[i])+'*'+gens[i]
+        result += '+O(F>={})'.format(self.Fprec)
+        return result
+    def nablaN_value(self,k):
+        return self.name_element('N1', self.nablaN.column(k-1))
+    def nablaP_value(self,k):
+        return self.name_element('P1', self.nablaP.column(k-1))
+    def nablaN_value_mod_p(self,k):
+        return self.name_element('N1', Matrix(GF(2),self.nablaN).column(k-1))
+    def nablaP_value_mod_p(self,k):
+        return self.name_element('P1', Matrix(GF(2),self.nablaP).column(k-1))
+    def print_mod_p_homology(self):
+        if not self.mod_p_homology_computed:
+            self.compute_mod_p_homology()
+        for k,v in self.homology_mod_p_dimensions.items():            
+            print("The dimension of the mod p cohomology in degree {} is {}.".format(
+                k,v))
+            print("The generators of the mod p cohomology in degree {} are ".format(k))
+            print(self.homology_mod_p_generators[k])
+            print('\n')     
+
+
+
 ####################
 # Helper functions #
 ####################
@@ -677,7 +742,7 @@ def syntomic_matrices(p,i,k,E,prec,Fprec,nablaP_OK=False,debug=False):
         for j in range(num_f):
             fprod=fprod*fvars[j]^(d[j])
         if c!=0:
-            z_str=str(z)
+            z_str=str(z^c)
         else:
             z_str=''
         if fprod==B(1):
@@ -713,7 +778,7 @@ def syntomic_matrices(p,i,k,E,prec,Fprec,nablaP_OK=False,debug=False):
         for j in range(num_f):
             fprod=fprod*fvars[j]^(d[j])
         excess_nygaard = max((n//k)-i, 0)
-        excess_factor = 1 if excess_nygaard==0 else phiB(E)^excess_nygaard
+        excess_factor = 1 if excess_nygaard==0 else E.V(p)^excess_nygaard
         column_to_process=recreduceB(z^(p*c)*excess_factor*phi_dividedB(fprod))
         for m in range(1,Fprec):
             m=ZZ(m)
@@ -737,7 +802,7 @@ def syntomic_matrices(p,i,k,E,prec,Fprec,nablaP_OK=False,debug=False):
         for j in range(num_f):
             fprod=fprod*fvars[j]^(d[j])
         if c!=0:
-            z_str=str(z)
+            z_str=str(z^c)
         else:
             z_str=''
         if fprod==B(1):
