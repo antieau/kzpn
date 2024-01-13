@@ -96,6 +96,13 @@ class Homology():
     def compute_cycle(self,i,v):
         mat = self.compute_homology_representatives(i)
         return mat*v
+    def normalize_cycle(self,i,v):
+        if self.complex.differential()[i]*v != 0:
+            print("Not a cycle!")
+        h = self.homology_orders[i]    
+        mat = self.f_dict[i].submatrix(self.f_dict[i].nrows() - len(h), 0)
+        return self.compute_cycle(i, mat*v)
+
 
 class MorphismHomology():
     def __init__(self, hA, hB, F):
