@@ -443,23 +443,39 @@ def prismatic_envelope_g(p,E,k,prec,Fprec,debug=False):
     def deltatilde(funct):
         return (C(phitilde(funct)-funct^p))*(1/p)
 
-    def trim(funct):
+    def trim(funct,algorithm='new'):
         """Trim function.
 
         Here, we use the fact that we have a fixed z-precision and the g_j secretly
         have z-weight p^j. So, we can trim lots of information.
         """
-        trimmed=0
-        for m in funct.monomials():
-            w=weight(m)[0]
-            new_coefficient=0
-            c=funct.monomial_coefficient(m)
-            for n in c.monomials():
-                to_trim=c.monomial_coefficient(n).add_bigoh(max(Fprec-w,0))
-                new_coefficient+=to_trim*n
-            trimmed+=new_coefficient*m
-        return C(trimmed)
-    
+        if algorithm=='old':
+            trimmed=0
+            for m in funct.monomials():
+                w=weight(m)[0]
+                new_coefficient=0
+                c=funct.monomial_coefficient(m)
+                for n in c.monomials():
+                    to_trim=c.monomial_coefficient(n).add_bigoh(max(Fprec-w,0))
+                    new_coefficient+=to_trim*n
+                trimmed+=new_coefficient*m
+            return C(trimmed)
+        elif algorithm=='new':
+            trimmed=C(0)
+            for m in funct.monomials():
+                w=weight(m)[0]
+                z_weight=max(Fprec-w,0)
+                if z_weight>0:
+                    new_coefficient=A0(0)
+                    c=funct.monomial_coefficient(m)
+                    for n in c.monomials():
+                        to_trim=c.monomial_coefficient(n).add_bigoh(z_weight)
+                        new_coefficient+=to_trim*n
+                    trimmed+=new_coefficient*m
+            return C(trimmed)
+        else:
+            raise ValueError("Input 'algorithm' should be 'old' or 'new'.")
+   
     rels=[]
     if num_g==1:
         rels.append(gvars[0]^p)
@@ -651,21 +667,37 @@ def nablaP_matrix_OK(p,i,k,E,prec,Fprec,debug=False):
                                                 
     v=recursive_phiC_product(u)
     
-    def initialize_bk_factor():
-        # Standard powering algorithm leads to substantial speedups.
+    def initialize_bk_factor(algorithm='reduce_each_square'):
+        # Standard powering algorithm leads to 10x speedups.
         result = C(1)
         base = v
         exp = i
 
-        while(exp >= 2):
-            if(exp % 2 == 1):
-                 result = recreduceC(result*base)
-            base = recreduceC(base*base)
-            exp = exp // 2
-        result = recreduceC(result*base)
-        return result
+        if algorithm=='reduce_each_square':
+            while(exp >= 2):
+                if(exp % 2 == 1):
+                     result = recreduceC(result*base)
+                base = recreduceC(base*base)
+                exp = exp // 2
+            return recreduceC(result*base)
+        elif algorithm=='reduce_result':
+            while(exp >= 2):
+               if(exp % 2 == 1):
+                    result = result*base
+               base = base*base
+               exp = exp // 2
+            return recreduceC(result*base)
+        elif algorithm=='reduce_each_factor':
+            while(exp>0):
+                result=recreduceC(result*base)
+                exp-=1
+            return result
+        elif algorithm=='reduce_result':
+            return recreduceC(base^i)
+        else:
+            raise ValueError("Argument 'algorithm' must be either 'reduce_each_square', 'reduce_result', 'reduce_each_factor', or 'reduce_result'")
     
-    bk_factor=initialize_bk_factor()
+    bk_factor=initialize_bk_factor(algorithm='reduce_each_square')
     if debug:
         print("bk factor is")
         print(bk_factor)
