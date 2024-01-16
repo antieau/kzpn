@@ -375,6 +375,7 @@ def prismatic_envelope_g(p,E,k,prec,Fprec,debug=False):
     A0.<d>=PolynomialRing(A)
     A0.inject_variables(verbose=False)
     num_g=floor(log(Fprec-1,p))+1
+    p_powers=[p^j for j in range(num_g)]
     C=PolynomialRing(A0,'g',num_g)
     C.inject_variables(verbose=False)
     variable_names=C.variable_names()
@@ -392,7 +393,7 @@ def prismatic_envelope_g(p,E,k,prec,Fprec,debug=False):
     # Gently coerce E into C. Occasionally, z is replaced by d otherwise, which
     # leads to nonsense.
     E_C=C(A(E))
-      
+
     def weight(funct):
         """Returns a tuple of weights.
 
@@ -403,7 +404,6 @@ def prismatic_envelope_g(p,E,k,prec,Fprec,debug=False):
         """
         nygaard_weight=p^(num_g-1)
         f_weight=Fprec
-        p_powers=[p^j for j in range(num_g)]
         
         def monomial_weight(m):
             """Returns the Nygaard weight of a monomial in the gj."""
@@ -427,6 +427,18 @@ def prismatic_envelope_g(p,E,k,prec,Fprec,debug=False):
             f_weight=min(f_weight,monomial_f_weight+coefficient_f_weight)
         
         return (f_weight,nygaard_weight)
+
+    def coefficient_add_bigoh(coeff,target_bigoh):
+        return A0([coeff_of_coeff.add_bigoh(target_bigoh) for coeff_of_coeff in coeff.list()])
+
+    def mul_capped(lhs,rhs):
+        out=C(0)
+        for lhs_monomial in lhs.monomials():
+            for rhs_monomial in rhs.monomials():
+                new_degree=lhs_monomial.weighted_degree(p_powers)+rhs_monomial.weighted_degree(p_powers)
+                if new_degree<Fprec:
+                    out+=coefficient_add_bigoh(lhs[lhs_monomial]*rhs[rhs_monomial],Fprec-new_degree)*lhs_monomial*rhs_monomial
+        return out
     
     def phitilde(funct): 
         g=0
@@ -522,6 +534,17 @@ def prismatic_envelope_g(p,E,k,prec,Fprec,debug=False):
                 out+=lazy_division(funct,(gunct.monomial_coefficient(m)).monomial_coefficient(n),Fprec-f_weight)*n*m
         return out
     
+#    def coefficient_reduce(c):
+#        """Reduces coefficient
+#
+#        Takes a coefficient (a polynomial in d with coefficients in power series in z)
+#        and returns an element of C obtained by using d=E
+#        """
+#        new_coefficient=A(0)
+#        for n in c.monomials():
+#            new_coefficient+=c.monomial_coefficient(n)*E^(n.degree(d))
+#        return A0(new_coefficient)
+
     def coefficient_reduce(c):
         """Reduces coefficient
 
@@ -531,10 +554,10 @@ def prismatic_envelope_g(p,E,k,prec,Fprec,debug=False):
         new_coefficient=0
         for n in c.monomials():
             new_coefficient+=c.monomial_coefficient(n)*E_C^(n.degree(d))
-        return new_coefficient    
+        return new_coefficient
 
     def reduce_d(funct):
-        reduced=0
+        reduced=C(0)
         for m in funct.monomials():
             reduced+=coefficient_reduce(funct.monomial_coefficient(m))*m
         return trim(C(reduced))
@@ -542,7 +565,7 @@ def prismatic_envelope_g(p,E,k,prec,Fprec,debug=False):
     # Now, reduce new_rels by rewriting all d's by E(z), since we're done with delta_tilde:
     for j in range(len(new_rels)):
         new_rels[j]=reduce_d(new_rels[j])   
-    
+
     def reduce(funct):
         """Run through the monomials of g and rewrite them once using new_rels.
 
@@ -550,6 +573,10 @@ def prismatic_envelope_g(p,E,k,prec,Fprec,debug=False):
         """
         reduced=0
         for m in funct.monomials():
+            if m.degrees() in g_monomials_dict:
+                g_monomials_dict[m.degrees()]+=1
+            else:
+                g_monomials_dict[m.degrees()]=1
             new_monomial=1
             degs=m.degrees()
             for exponent in range(len(degs)):
@@ -595,17 +622,17 @@ def prismatic_envelope_g(p,E,k,prec,Fprec,debug=False):
     gvars_phi=initialize_gvars_phi()
 
     def phi(funct):
-        g=0
+        g=C(0)
         for m in funct.monomials():
             c=funct.monomial_coefficient(m)
-            h=0
+            h=A0(0)
             # Iterate over powers n of d.
             for n in c.monomials():
                 x=c.monomial_coefficient(n)
                 deg=n.degree(d)
-                h+=x.V(p)*C(E(z^p))^deg
-            g+=C(m(gvars_phi)*h)
-        return g
+                h+=A(x.V(p)*(E(z^p)^deg))
+            g+=h*m(gvars_phi)
+        return recursive_reduce(g)
     
     def delta(funct):
         return (C(phi(funct)-funct^p))*(1/p)
@@ -622,7 +649,7 @@ def prismatic_envelope_g(p,E,k,prec,Fprec,debug=False):
                 divided_funct+=funct.monomial_coefficient(m)*C.monomial(*tuple(degs))
         return divided_funct
         
-    return C,gvars,weight,phi,delta,phitilde,deltatilde,reduce,recursive_reduce,g0_divide,coefficient_divide
+    return C,gvars,weight,phi,delta,phitilde,deltatilde,reduce,recursive_reduce,g0_divide,coefficient_divide,mul_capped
 
 
 ###############################################
@@ -635,7 +662,7 @@ def nablaP_matrix_OK(p,i,k,E,prec,Fprec,debug=False):
     Note that this does not technically depend on k, so one can run this once
     for a large k and slice down to compute for several k at once.
     """
-    C,gvarsC,weightC,phiC,deltaC,phiCtilde,deltaCtilde,reduceC,recreduceC,g0_divideC,coefficient_divideC=prismatic_envelope_g(p,E,k,prec,Fprec,debug=debug)
+    C,gvarsC,weightC,phiC,deltaC,phiCtilde,deltaCtilde,reduceC,recreduceC,g0_divideC,coefficient_divideC,mul_cappedC=prismatic_envelope_g(p,E,k,prec,Fprec,debug=debug)
     
     def initialize_u():
         # Takes almost no time.
@@ -659,7 +686,7 @@ def nablaP_matrix_OK(p,i,k,E,prec,Fprec,debug=False):
     def recursive_phiC_product(u):
         v=u
         while True:
-            funct=recreduceC(u*phiC(v))
+            funct=recreduceC(mul_cappedC(u,phiC(v)))
             if funct==v:
                 return v
             else:
@@ -680,6 +707,13 @@ def nablaP_matrix_OK(p,i,k,E,prec,Fprec,debug=False):
                 base = recreduceC(base*base)
                 exp = exp // 2
             return recreduceC(result*base)
+        elif algorithm=='reduce_mul_capped':
+            while(exp >= 2):
+                if(exp % 2 == 1):
+                    result = recreduceC(mul_cappedC(result,base))
+                base = recreduceC(mul_cappedC(base,base))
+                exp = exp // 2
+            return recreduceC(mul_cappedC(result,base))
         elif algorithm=='reduce_result':
             while(exp >= 2):
                if(exp % 2 == 1):
@@ -697,7 +731,7 @@ def nablaP_matrix_OK(p,i,k,E,prec,Fprec,debug=False):
         else:
             raise ValueError("Argument 'algorithm' must be either 'reduce_each_square', 'reduce_result', 'reduce_each_factor', or 'reduce_result'")
     
-    bk_factor=initialize_bk_factor(algorithm='reduce_each_square')
+    bk_factor=initialize_bk_factor(algorithm='reduce_mul_capped')
     if debug:
         print("bk factor is")
         print(bk_factor)
@@ -730,7 +764,7 @@ def nablaP_matrix_OK(p,i,k,E,prec,Fprec,debug=False):
         for n in range(1,Fprec):
             column_to_process=recreduceC((z-gvarsC[0])*old_column_to_process)
             old_column_to_process=column_to_process
-            input_build=[1]+[0 for i in range(len(gvarsC)-1)]
+            # input_build=[1]+[0 for i in range(len(gvarsC)-1)]
             send_g0_to_one_dict={gvarsC[0]:1}
             for j in range(1,len(gvarsC)):
                 send_g0_to_one_dict[gvarsC[j]]=0
