@@ -297,7 +297,10 @@ class PrismaticEnvelopeG():
         self._init_lambda()
         self._init_R_terms()
         self._init_relations()
-        self._reduce_relations_other()
+        self._reduce_relations()
+        self._reduce_delta_g()
+        self._reduce_phi_g()
+        self._reduce_phi_divided_g()
         self._init_bk_unit()
     def _init_ring(self):
         if(self.debug):
@@ -454,6 +457,7 @@ class PrismaticEnvelopeG():
         self._relations.append(self.ring(0))
     def _reduce_single_step(self,val):
         result=self.ring(0)
+        val=self.trim(val)
         for m in val.monomials():
             new_summand=val.monomial_coefficient(m)
             degs=m.degrees()
@@ -502,6 +506,21 @@ class PrismaticEnvelopeG():
             prev_val = result
             result = self._reduce_single_step(prev_val)
         return result
+    def _reduce_delta_g(self):
+        if(self.debug):
+            print('reducing delta_g')
+        for j in range(len(self._delta_g)):
+            self._delta_g[j] = self.reduce(self._delta_g[j])
+    def _reduce_phi_g(self):
+        if(self.debug):
+            print('reducing phi_g')
+        for j in range(len(self._phi_g)):
+            self._phi_g[j] = self.reduce(self._phi_g[j])
+    def _reduce_phi_divided_g(self):
+        if(self.debug):
+            print('reducing phi_divided_g')
+        for j in range(len(self._phi_divided_g)):
+            self._phi_divided_g[j] = self.reduce(self._phi_divided_g[j])
     def _init_lambda(self):
         if(self.debug):
             print('initializing lambda')
@@ -520,7 +539,7 @@ class PrismaticEnvelopeG():
         if(self.debug):
             print('initializing bk unit')
 
-        phiu = 1 - self._phi_divided_g[0]
+        phiu = self.reduce(1 - self._phi_divided_g[0])
         previous = phiu
         phiv = self.reduce(phiu * self.phi(phiu))
         while(previous != phiv):
