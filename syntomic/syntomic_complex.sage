@@ -100,10 +100,11 @@ class SyntomicComplex():
             raise ValueError('Not enough prec_F')
         self._red0=Matrix(self.basering, prec_F-1, prec_F-1)
         z = self.prismaticEnvelopeF.ring.from_base_ring(self.prismaticEnvelopeF.z)
-        basis = [z^i for i in range(0,prec_F)]
+        current_can_img = self.prismaticEnvelopeF.ring(1) 
         for j in range(1,prec_F):
-            can_img = self.prismaticEnvelopeF.reduce(basis[j])
-            column = self.prismaticEnvelopeF.element_to_vector(can_img)
+            current_can_img = self.prismaticEnvelopeF.reduce( z * current_can_img)
+            #current_can_img is z^j, reduced
+            column = self.prismaticEnvelopeF.element_to_vector(current_can_img)
             for k in range(1,prec_F):
                 self._red0[k-1,j-1]=column[k]
     def _compute_red1(self,prec_F):
@@ -116,12 +117,13 @@ class SyntomicComplex():
             raise ValueError('Not enough prec_F')
         self._red1=Matrix(self.basering, prec_F-1, prec_F-1)
         z = self.prismaticEnvelopeF.ring.from_base_ring(self.prismaticEnvelopeF.z)
-        basis = [z^i for i in range(0,prec_F)]
+        current_can_img = self.prismaticEnvelopeF.ring(1) 
         for j in range(0,prec_F-1):
-            can_img = self.prismaticEnvelopeF.reduce(basis[j])
-            column = self.prismaticEnvelopeF.element_to_vector(can_img)
+            #current_can_img is z^j, reduced
+            column = self.prismaticEnvelopeF.element_to_vector(current_can_img)
             for k in range(0,prec_F-1):
                 self._red1[k,j]=column[k]
+            current_can_img = self.prismaticEnvelopeF.reduce( z * current_can_img)
     def _compute_nablaP(self,prec_F):
         if(self.debug):
             print('computing nablaP')
