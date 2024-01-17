@@ -22,6 +22,9 @@ class SyntomicComplex():
     def _compute_can0(self,i,prec_F):
         if(self.debug):
             print('computing can0')
+        if(prec_F<=1):
+            self._can0=Matrix(self.basering, 0, 0)
+            return
         if(prec_F > self.prismaticEnvelopeF.prec_F):
             raise ValueError('Not enough prec_F')
         self._can0=Matrix(self.basering, prec_F-1, prec_F-1)
@@ -34,6 +37,9 @@ class SyntomicComplex():
     def _compute_can1(self,i,prec_F):            
         if(self.debug):
             print('computing can1')
+        if(prec_F<=1):
+            self._can1=Matrix(self.basering, 0, 0)
+            return
         if(prec_F > self.prismaticEnvelopeF.prec_F):
             raise ValueError('Not enough prec_F')
         self._can1=Matrix(self.basering, prec_F-1, prec_F-1)
@@ -46,6 +52,9 @@ class SyntomicComplex():
     def _compute_phi0(self,i,prec_F):        
         if(self.debug):
             print('computing phi0')
+        if(prec_F<=1):
+            self._phi0=Matrix(self.basering, 0, 0)
+            return
         if(prec_F > self.prismaticEnvelopeF.prec_F):
             raise ValueError('Not enough prec_F')
         self._phi0=Matrix(self.basering, prec_F-1, prec_F-1)
@@ -58,6 +67,9 @@ class SyntomicComplex():
     def _compute_nablaPOK(self,i,prec_F):
         if(self.debug):
             print('computing nablaPOK')
+        if(prec_F<=1):
+            self._nablaPOK=Matrix(self.basering, 0, 0)
+            return
         if(prec_F > self.prismaticEnvelopeG.prec_F):
             raise ValueError('Not enough prec_F')
         self._nablaPOK=Matrix(self.basering, prec_F-1, prec_F-1)
@@ -81,6 +93,9 @@ class SyntomicComplex():
     def _compute_red0(self,prec_F):
         if(self.debug):
             print('computing red0')
+        if(prec_F<=1):
+            self._red0=Matrix(self.basering, 0, 0)
+            return
         if(prec_F > self.prismaticEnvelopeF.prec_F):
             raise ValueError('Not enough prec_F')
         self._red0=Matrix(self.basering, prec_F-1, prec_F-1)
@@ -94,6 +109,9 @@ class SyntomicComplex():
     def _compute_red1(self,prec_F):
         if(self.debug):
             print('computing red1')
+        if(prec_F<=1):
+            self._red1=Matrix(self.basering, 0, 0)
+            return
         if(prec_F > self.prismaticEnvelopeF.prec_F):
             raise ValueError('Not enough prec_F')
         self._red1=Matrix(self.basering, prec_F-1, prec_F-1)
@@ -107,25 +125,40 @@ class SyntomicComplex():
     def _compute_nablaP(self,prec_F):
         if(self.debug):
             print('computing nablaP')
+        if(prec_F<=1):
+            self._nablaP=Matrix(self.basering, 0, 0)
+            return
         #nablaP * red0 = red1 * nablaPOK
         self._nablaP = divide_right(self._red1 * self._nablaPOK, self._red0)
     def _compute_nablaN(self,prec_F):
         if(self.debug):
             print('computing nablaN')
+        if(prec_F<=1):
+            self._nablaN=Matrix(self.basering, 0, 0)
+            return
         #nablaP * can0 = can1 * nablaN
         self._nablaN = divide_left(self._can1, self._nablaP * self._can0)
     def _compute_phi1(self,prec_F):
         if(self.debug):
             print('computing phi1')
+        if(prec_F<=1):
+            self._phi1=Matrix(self.basering, 0, 0)
+            return
         #nablaP * phi0 = phi1 * nablaN
         self._phi1 = divide_right(self._nablaP*self._phi0, self._nablaN)
     def _compute_syn0(self,prec_F):
+        if(prec_F<=1):
+            self._syn0=Matrix(self.basering, 0, 0)
+            return
         if(self.debug):
             print('computing syn0')
         self._syn0 = self._can0 - self._phi0
     def _compute_syn1(self,prec_F):
         if(self.debug):
             print('computing syn1')
+        if(prec_F<=1):
+            self._syn1=Matrix(self.basering, 0, 0)
+            return
         self._syn1 = self._can1 - self._phi1
     def _compute_matrices(self,i,prec_F):
         if(self.debug):
@@ -164,5 +197,19 @@ class SyntomicComplex():
         self.complex_mod_p=ChainComplex({0:d0,1:d1})
     def _compute_homology(self):
         self.homology=Homology(self.complex)
+        if(self.homology.orders=={}):
+            self.homology.orders[0] = []
+            self.homology.orders[1] = []
+            self.homology.orders[2] = []
+            self.homology.representatives[0]=[]
+            self.homology.representatives[1]=[]
+            self.homology.representatives[2]=[]
     def _compute_homology_mod_p(self):
         self.homology_mod_p=Homology(self.complex_mod_p)
+        if(self.homology_mod_p.orders=={}):
+            self.homology_mod_p.orders[0] = []
+            self.homology_mod_p.orders[1] = []
+            self.homology_mod_p.orders[2] = []
+            self.homology_mod_p.representatives[0]=[]
+            self.homology_mod_p.representatives[1]=[]
+            self.homology_mod_p.representatives[2]=[]

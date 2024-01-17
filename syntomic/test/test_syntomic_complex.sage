@@ -24,7 +24,7 @@ syntomic_testcases=[
 
 @test('p,i,n,expected_homology',syntomic_testcases)
 def test_syntomic(p,i,n,expected_homology):
-    prec_F = i*n
+    prec_F = max(i*n,1)
     total_precision = 50
     W=Zp(p,total_precision,print_mode='digits',type='capped-abs',show_prec=True)
     A=PowerSeriesRing(W,'z',prec_F)

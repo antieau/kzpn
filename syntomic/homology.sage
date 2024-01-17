@@ -3,8 +3,12 @@ class Homology():
         self.complex = comp
         self._compute_homology()
     def _compute_homology(self):
-        self._complex_smith_form()
         nz=self.complex.nonzero_degrees()
+        if(len(nz)==0):
+            self.orders={}
+            self.representatives={}
+            return
+        self._complex_smith_form()
         deg_min=min(nz)
         deg_max=max(nz)
         self.orders={}

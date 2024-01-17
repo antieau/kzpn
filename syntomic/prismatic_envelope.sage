@@ -514,6 +514,9 @@ class PrismaticEnvelopeG():
             self._lambda_denominator.append(1 - self.delta_base(d_pow*self._lambda[j-1]))
             self._lambda.append(self._lambda[j-1]^self.p / self._lambda_denominator[j-1])
     def _init_bk_unit(self):
+        if(len(self.g)==0):
+            self.bk_unit = self.ring(1)
+            return
         if(self.debug):
             print('initializing bk unit')
 
