@@ -439,19 +439,7 @@ def prismatic_envelope_g(p,E,k,prec,Fprec,debug=False):
                 if new_degree<Fprec:
                     out+=coefficient_add_bigoh(lhs[lhs_monomial]*rhs[rhs_monomial],Fprec-new_degree)*lhs_monomial*rhs_monomial
         return out
-
-    def pow_capped(term,power):
-        result = C(1)
-        base = term
-        exp = power
-
-        while(exp >= 2):
-            if(exp % 2 == 1):
-                result = recursive_reduce(mul_capped(result,base))
-            base = recursive_reduce(mul_capped(base,base))
-            exp = exp // 2
-        return recursive_reduce(mul_capped(result,base))
-   
+    
     def phitilde(funct): 
         g=0
         for m in funct.monomials():
@@ -578,8 +566,6 @@ def prismatic_envelope_g(p,E,k,prec,Fprec,debug=False):
     for j in range(len(new_rels)):
         new_rels[j]=reduce_d(new_rels[j])   
 
-    rels_finalized=False
-
     def reduce(funct):
         """Run through the monomials of g and rewrite them once using new_rels.
 
@@ -595,10 +581,7 @@ def prismatic_envelope_g(p,E,k,prec,Fprec,debug=False):
             degs=m.degrees()
             for exponent in range(len(degs)):
                 r=degs[exponent]//p
-                if rels_finalized:
-                    new_monomial=recursive_reduce(mul_capped(recursive_reduce(mul_capped(new_monomial,pow_capped(new_rels[exponent],r))),gvars[exponent]^(degs[exponent]-p*r)))
-                else:
-                    new_monomial=new_monomial*new_rels[exponent]^r*gvars[exponent]^(degs[exponent]-p*r)
+                new_monomial=new_monomial*new_rels[exponent]^r*gvars[exponent]^(degs[exponent]-p*r)
             reduced+=funct.monomial_coefficient(m)*new_monomial
         reduced=trim(C(reduced))                
         return reduced
@@ -612,8 +595,6 @@ def prismatic_envelope_g(p,E,k,prec,Fprec,debug=False):
         while prev_value != new_rels[j]:
             prev_value=new_rels[j]
             new_rels[j]=reduce(C(prev_value))
-
-    rels_finalized=True
 
     if debug:
         print("new_rels in prismatic_envelope_g:")
