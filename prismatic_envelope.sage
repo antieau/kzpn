@@ -573,10 +573,6 @@ def prismatic_envelope_g(p,E,k,prec,Fprec,debug=False):
         """
         reduced=0
         for m in funct.monomials():
-            if m.degrees() in g_monomials_dict:
-                g_monomials_dict[m.degrees()]+=1
-            else:
-                g_monomials_dict[m.degrees()]=1
             new_monomial=1
             degs=m.degrees()
             for exponent in range(len(degs)):
