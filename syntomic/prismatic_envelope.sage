@@ -82,7 +82,11 @@ class PrismaticEnvelopeF():
             c = poly.monomial_coefficient(m)
             deg = m.degree()
             r = deg//self.n
-            result += self.ring.from_base_ring(c*self.z^(deg-self.n*r))*self.f[0]^r
+            if(r == 0):
+                result += self.ring.from_base_ring(c*m)
+            elif(len(self.f)>0):
+                result += self.ring.from_base_ring(c*self.z^(deg-self.n*r))*self.f[0]^r
+            #else, z^n=0 and we add nothing
         return result
     def _reduce_single_step(self,val):
         result=self.ring(0)
@@ -216,7 +220,10 @@ class PrismaticEnvelopeF():
             for mon in c.monomials():
                 weight_f = self.weight_N(mon)
                 c2 = c.monomial_coefficient(mon)
-                result += self.phi_base(c2) * self.phi_base(self.eisenstein)^(weight_dtilde + weight_f - i) * mon(self._phi_divided_f)
+                if(len(self.f)>0):
+                    result += self.ring.from_base_ring(self.phi_base(c2) * self.phi_base(self.eisenstein)^(weight_dtilde + weight_f - i)) * mon(self._phi_divided_f)
+                else:    
+                    result += self.ring.from_base_ring(self.phi_base(c2) * self.phi_base(self.eisenstein)^(weight_dtilde - i))
         return result
     def _compute_basis(self):
         if(self.debug):
@@ -396,6 +403,7 @@ class PrismaticEnvelopeG():
             self._delta_g = [self.ring(0)]
             self._phi_g = [self.ring(0)]
             self._phi_divided_g = [self.ring(0)]
+            return
         self._delta_g = []
         self._phi_g = len(self.g) * [None]   #this is so that self.phi works in the recursion, but will complain if we use it in the wrong way.
         d = self.eisenstein

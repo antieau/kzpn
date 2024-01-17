@@ -6,6 +6,8 @@ sage_import('syntomic/prismatic_envelope', fromlist=['PrismaticEnvelopeF', 'Pris
 sage_import('syntomic/syntomic_complex', fromlist=['SyntomicComplex'])
 
 syntomic_testcases=[
+        (2,0,2,{0: [], 1: [], 2: []}),
+        (2,1,2,{0: [], 1: [2], 2: []}),
         (2,2,2,{0: [], 1: [8], 2: [2]}),
         (2,3,2,{0: [], 1: [8], 2: []}),
         (2,4,2,{0: [], 1: [2,8], 2: []}),

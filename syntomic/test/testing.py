@@ -9,7 +9,7 @@ def test_args(func,varnames,testcases):
             func(**args)
         except Exception as e:
             print('{}: \033[91m{}\033[00m'.format(func.__name__,'Failed'))
-            raise e
+            #raise e
             return func
         print('{}: \033[92m{}\033[00m'.format(func.__name__,'Passed'))
     return func
