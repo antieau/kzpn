@@ -9,7 +9,7 @@ class PrismaticEnvelopeF():
         self._init_ring()
         self._init_lambda()
         self._init_relations()
-        self._reduce_relations()
+        #self._reduce_relations() #TWICE AS FAST with this commented out!!
         self._init_nygaard_ring()
         self._init_phi_divided()
         self._compute_basis()
