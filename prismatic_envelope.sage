@@ -560,7 +560,7 @@ def prismatic_envelope_g(p,E,k,prec,Fprec,debug=False):
         reduced=C(0)
         for m in funct.monomials():
             reduced+=coefficient_reduce(funct.monomial_coefficient(m))*m
-        return trim(C(reduced))
+        return trim(reduced)
     
     # Now, reduce new_rels by rewriting all d's by E(z), since we're done with delta_tilde:
     for j in range(len(new_rels)):
@@ -604,7 +604,7 @@ def prismatic_envelope_g(p,E,k,prec,Fprec,debug=False):
         funct=reduce(C(funct))
         while prevFunct != funct:
             prevFunct = funct
-            funct=reduce(C(funct))
+            funct=reduce(funct)
         return funct
     
     def initialize_gvars_phi():
@@ -620,14 +620,15 @@ def prismatic_envelope_g(p,E,k,prec,Fprec,debug=False):
     def phi(funct):
         g=C(0)
         for m in funct.monomials():
-            c=funct.monomial_coefficient(m)
-            h=A0(0)
-            # Iterate over powers n of d.
-            for n in c.monomials():
-                x=c.monomial_coefficient(n)
-                deg=n.degree(d)
-                h+=A(x.V(p)*(E(z^p)^deg))
-            g+=h*m(gvars_phi)
+            if p*m.weighted_degree(p_powers) < Fprec:
+                c=funct.monomial_coefficient(m)
+                h=A0(0)
+                # Iterate over powers n of d.
+                for n in c.monomials():
+                    x=c.monomial_coefficient(n)
+                    deg=n.degree(d)
+                    h+=A(x.V(p)*(E(z^p)^deg))
+                g+=h*m(gvars_phi)
         return recursive_reduce(g)
     
     def delta(funct):
@@ -648,6 +649,7 @@ def prismatic_envelope_g(p,E,k,prec,Fprec,debug=False):
     return C,gvars,weight,phi,delta,phitilde,deltatilde,reduce,recursive_reduce,g0_divide,coefficient_divide,mul_capped
 
 
+
 ###############################################
 # Build nabla on prismatic cohomology for OK. #
 ###############################################
@@ -659,7 +661,7 @@ def nablaP_matrix_OK(p,i,k,E,prec,Fprec,debug=False):
     for a large k and slice down to compute for several k at once.
     """
     C,gvarsC,weightC,phiC,deltaC,phiCtilde,deltaCtilde,reduceC,recreduceC,g0_divideC,coefficient_divideC,mul_cappedC=prismatic_envelope_g(p,E,k,prec,Fprec,debug=debug)
-    
+
     def initialize_u():
         # Takes almost no time.
         if len(gvarsC)==1:
@@ -687,7 +689,8 @@ def nablaP_matrix_OK(p,i,k,E,prec,Fprec,debug=False):
                 return v
             else:
                 v=funct
-                                                
+        return v
+
     v=recursive_phiC_product(u)
     
     def initialize_bk_factor(algorithm='reduce_each_square'):
