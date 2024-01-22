@@ -272,7 +272,7 @@ class PrismaticEnvelopeF():
             c1 = val.monomial_coefficient(dpow)
             for fmon in c1.monomials():
                 deg_f = self.weight_F(fmon)
-                c2 = val.monomial_coefficient(fmon).polynomial()
+                c2 = c1.monomial_coefficient(fmon).polynomial()
                 for zpow in c2.monomials():
                     deg_z = zpow.degree()
                     coeff = c2.monomial_coefficient(zpow)
@@ -298,9 +298,9 @@ class PrismaticEnvelopeG():
         self._init_R_terms()
         self._init_relations()
         self._reduce_relations()
-        self._reduce_delta_g()
+        #self._reduce_delta_g()
         self._reduce_phi_g()
-        self._reduce_phi_divided_g()
+        #self._reduce_phi_divided_g()
         self._init_bk_unit()
     def _init_ring(self):
         if(self.debug):

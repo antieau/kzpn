@@ -28,3 +28,8 @@ def divide_left(mat0,mat1):
 def divide_right(mat0,mat1):
     diag,l,r = mat1.smith_form()
     return _divide_cols(mat0*r,diag)*l
+
+def integral_inverse(f):
+    _,u,v=f.smith_form()
+    #ufv=id, so f=u^{-1}v^{-1}, so f^{-1}=vu
+    return v*u
