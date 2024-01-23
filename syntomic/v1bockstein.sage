@@ -59,7 +59,13 @@ class BocksteinV1():
     def _compute_v1P0(self,i):
         if(self.debug):
             print("computing v1P0 in weight {}".format(i))
-        #weight 0 is special, todo: revisit that
+        if(i==0):
+            v1P0=Matrix(self.basering.residue_field(), nrows=self.prec_F-1,ncols=1)
+            image = self.envelopeF.reduce(self.envelopeF.ring.from_base_ring(self.eisenstein^self.p))
+            column = self.envelopeF.element_to_vector(image)
+            for k in range(1,self.prec_F):
+                v1P0[k-1,0]=column[k]
+            return v1P0
         v1P0=Matrix(self.basering.residue_field(), self.prec_F-1, self.prec_F-1)
         basis = self.envelopeF.basis()
         for j in range(1,self.prec_F):
@@ -72,11 +78,19 @@ class BocksteinV1():
     def _compute_v1N0(self,i):
         if(self.debug):
             print("computing v1N0 in weight {}".format(i))
+        if(i==0):
+            v1N0=Matrix(self.basering.residue_field(), nrows=self.prec_F-1,ncols=1)
+            dtilde = self.envelopeF.dtilde
+            image = self.envelopeF.nygaard_reduce(self.p-1,dtilde^self.p)
+            column = self.envelopeF.nygaard_element_to_vector(self.p-1,image)
+            for k in range(1,self.prec_F):
+                v1N0[k-1,0]=column[k]
+            return v1N0
         v1N0=Matrix(self.basering.residue_field(), self.prec_F-1, self.prec_F-1)
         basis = self.envelopeF.nygaard_basis(i)
         dtilde = self.envelopeF.dtilde
         for j in range(1,self.prec_F):
-            image = self.envelopeF.nygaard_reduce(i+self.p-1, dtilde^p * basis[j])
+            image = self.envelopeF.nygaard_reduce(i+self.p-1, dtilde^self.p * basis[j])
             column = self.envelopeF.nygaard_element_to_vector(i+self.p-1, image)
             for k in range(1,self.prec_F):
                 v1N0[k-1,j-1] = column[k]
@@ -85,6 +99,8 @@ class BocksteinV1():
     def _compute_v1P1(self,i):
         if(self.debug):
             print("computing v1P1 in weight {}".format(i))
+        if(i==0):
+            return Matrix(self.basering.residue_field(),nrows=self.prec_F-1,ncols=0)
         v1P1=Matrix(self.basering.residue_field(), self.prec_F-1, self.prec_F-1)
         basis = self.envelopeF.basis()
         for j in range(0,self.prec_F-1):
@@ -97,6 +113,8 @@ class BocksteinV1():
     def _compute_v1N1(self,i):
         if(self.debug):
             print("computing v1N1 in weight {}".format(i))
+        if(i==0):
+            return Matrix(self.basering.residue_field(),nrows=self.prec_F-1,ncols=0)
         v1N1=Matrix(self.basering.residue_field(), self.prec_F-1, self.prec_F-1)
         basis = self.envelopeF.nygaard_basis(i-1)
         dtilde = self.envelopeF.dtilde
@@ -119,6 +137,9 @@ class BocksteinV1():
         maps = {}
         for i in range(weight, self.max_weight+1, p-1):
             index = (i-weight)//(p-1)
+            if(i==0):
+                complexes[-index] = ChainComplex(base_ring=self.basering.residue_field(), data={0: Matrix(self.basering.residue_field(), 1,1)})
+                continue
             complexes[-index] = self.syntomic_complexes[i].complex_mod_p
         for i in range(weight, self.max_weight-p+2, p-1):
             index = (i-weight)//(p-1)
