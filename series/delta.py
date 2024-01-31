@@ -5,7 +5,7 @@ from series.series import WeightedPowerSeriesRingCappedElement
 # TODO: rebase this to be a wrapper of a WeightedPowerSeriesRingCapped plus a Frobenius
 # endomorphism plus delta.
 
-class DeltaPowerSeriesCapped(WeightedPowerSeriesRingCapped):
+class DeltaPowerSeriesCapped():
     def __init__(self,characteristic_prime,underlying_ring,deltas,frobenii=None):
         """
         Optionally give the frobenius values. This will be useful when some pre-reduction has been done.
@@ -15,15 +15,18 @@ class DeltaPowerSeriesCapped(WeightedPowerSeriesRingCapped):
         except TypeError:
             raise TypeError("Base ring must implement Frobenius.")
         self._underlying_ring=underlying_ring
-        self._element_class=DeltaPowerSeriesCappedElement
         self._prime=characteristic_prime
+        self._prime_element=self._underlying_ring._unflatten(self._underlying_ring._polynomial_ring(self._prime))
         self._deltas=deltas
         if frobenii:
+            # No check to guarantee that these are compatible with the input deltas.
             self._frobenii=frobenii
         else:
             self._frobenii=[]
             for i in range(len(self._underlying_ring.gens())):
-                self._frobenii.append(self._underling_ring.gens()[i]**p+p*self._deltas[i])
+                self._frobenii.append(self._underlying_ring.gens()[i]**self._prime+self._prime_element*self._deltas[i])
+
+        self._frobenius=WeightedPowerSeriesRingCappedHomomorphism(self._underlying_ring,self._underlying_ring,self._frobenii)
 
     def __str__(self):
         return "Delta ring structure on {} with delta given by {} on the generators".format(
@@ -31,32 +34,49 @@ class DeltaPowerSeriesCapped(WeightedPowerSeriesRingCapped):
             self._deltas
         )
 
-    def self.delta():
-        pass
+    def delta(self,element):
+        """
+        Each application of delta loses one bit of p-adic precision.
+        """
+        return (self.frobenius_endomorphism()(element)-element**self._prime)//self._prime
 
-    def frobenius_endomorphism(self,element):
-        if not element.parent()==self:
-            raise ValueError("Element must be an element of self.")
-        else:
-            new_terms=[]
-            for deg,coeff in element._term_list:
-                if self._prime*deg < self.precision_cap():
-                    new_homogeneous=self._polynomial_ring.zero()
-                    for term in coeff.monomials():
-                        for m in term.monomials():
-                            new_homogeneous+=self.coefficient_ring().frobenius_endomorphism()(coeff.monomial_coefficient(m))*(m**self._prime)
-                    new_terms.append((self._prime*deg,new_homogeneous))
-                else:
-                    break
-            return self._element_class(self,new_terms)
+    def frobenius_endomorphism(self):
+        """
+        Returns the *function*. Thus, it must be called as self.frobenius_endomorphism()(element).
+        This is to maintain compatibility with SAGE.
+        """
+        return self._frobenius
 
-class DeltaPowerSeriesCappedHomomorphism(WeightedPowerSeriesRingCappedHomomorphism):
+    def w1(self,a,b):
+        """
+        Each application of w1 loses one bit of p-adic precision.
+        """
+        return (x**self._prime+y**self._prime-(x+y)**self._prime)//self._prime
+
+    def underlying_ring(self):
+        return self.underlying_ring()
+
+    def coefficient_ring(self):
+        return self._underlying_ring.coefficient_ring()
+
+    def precision_cap(self):
+        return self._underlying_ring.precision_cap()
+
+    def underlying_ring(self):
+        return _underlying_ring
+
+    def prime(self):
+        return self._prime
+
+    def prime_element(self):
+        return self._prime_element
+
+    def ngens(self):
+        return self.underlying_ring().ngens()
+
+class DeltaPowerSeriesCappedHomomorphism():
     def __init__(self,domain,codomain,action_on_generators):
         """
         No check is made that this is compatible with the delta-ring structures.
         """
-        WeightedPowerSeriesRingCappedHomomorphism.__init__(self,domain,codomain,action_on_generators)
-
-class DeltaPowerSeriesCappedElement(WeightedPowerSeriesRingCappedElement):
-    def __init__(self,parent,term_list):
-        WeightedPowerSeriesRingCappedElement.__init__(self,parent,term_list)
+        self._underlying_ring_homomorphism = WeightedPowerSeriesRingCappedHomomorphism.__init__(self,domain.underlying_ring(),codomain.underlying_ring(),action_on_generators)

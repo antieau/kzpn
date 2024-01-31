@@ -20,7 +20,7 @@ class WeightedPowerSeriesRingCapped:
         self,
         coefficient_ring,
         precision_cap,
-        num_vars,
+        ngens,
         weights,
         prefix="z",
         names=None,
@@ -30,29 +30,65 @@ class WeightedPowerSeriesRingCapped:
 
         coefficient_ring - a commutative ring
         precision_cap - an integer giving the precision for the prefix-adic coefficients
-        num_vars - the number of variables
+        ngens - the number of variables
         weights - a tuple of *positive* integer weights, one for each variable
         prefix - a string giving the prefix for the variables
         names - a list of variable names; this overrides prefix if given
 
         """
         if coefficient_ring.is_ring() == False:
-            raise ValueError("Argument 'coefficient_ring' must be a ring.")
+            raise TypeError("Argument 'coefficient_ring' must be a ring.")
         if precision_cap.is_integer() == False or precision_cap<=0:
-            raise ValueError("Argument 'precision_cap' must be a positive integer.")
+            raise TypeError("Argument 'precision_cap' must be a positive integer.")
         self._coefficient_ring = coefficient_ring
         self._precision_cap = precision_cap
-        self._num_vars = num_vars
+        self._ngens = ngens
         self._prefix = prefix
         if names:
             self._variable_names = names
         else:
             self._variable_names = [
-                prefix + "{}".format(t) for t in range(self._num_vars)
+                prefix + "{}".format(t) for t in range(self._ngens)
             ]
         self._weights = tuple(weights)
-        self._polynomial_ring=PolynomialRing(self._coefficient_ring,self._prefix,self._num_vars,order=TermOrder('wdeglex',self._weights))
+        self._polynomial_ring=PolynomialRing(self._coefficient_ring,self._prefix,self._ngens,order=TermOrder('wdeglex',self._weights))
         self._element_class = WeightedPowerSeriesRingCappedElement
+
+    def ngens(self):
+        return self._ngens
+
+    def _flatten(self,element):
+        """
+        Returns the element as an element in the underlying polynomial ring.
+        """
+        if element.parent() != self:
+            raise TypeError("Input must be a member of self.")
+        out = self._polynomial_ring.zero()
+        for deg,coeff in element._term_list:
+            out += coeff
+        return out
+
+    def _unflatten(self,flat_polynomial):
+        """
+        Takes an element of self._polynomial and unpacks it into a power series, ignoring terms of
+        degree at or above the precision cap.
+        """
+        if flat_polynomial.parent() != self._polynomial_ring:
+            raise TypeError("Input must be a member of self._polynomial_ring.")
+        out_degrees={}
+        for m in flat_polynomial.monomials():
+            deg = m.degree()
+            if deg < self.precision_cap():
+                if deg in out_degrees:
+                    out_degrees[deg]+=flat_polynomial.monomial_coefficient(m)*m
+                else:
+                    out_degrees[deg]=flat_polynomial.monomial_coefficient(m)*m
+        out_degrees_list=list(out_degrees.keys())
+        out_degrees_list.sort()
+        term_list=[]
+        for deg in out_degrees_list:
+            term_list.append((deg,out_degrees[deg]))
+        return self._element_class(self,term_list)
 
     def coefficient_ring(self):
         return self._coefficient_ring
@@ -82,7 +118,11 @@ class WeightedPowerSeriesRingCapped:
         Transforms an input polynomial into the internal representation.
 
         """
-        pass
+        try:
+            y = self._polynomial_ring(x)
+            return self._unflatten(y)
+        except:
+            raise NotImplementedError("Coercion is not implemented.")
 
     def gens(self):
         self._gens=[]
@@ -101,12 +141,12 @@ class WeightedPowerSeriesRingCapped:
 class WeightedPowerSeriesRingCappedHomomorphism:
     def __init__(self, domain, codomain, action_on_generators):
         # A list of elements of codomian giving the image of each
-        # generator of domain.
+        # generator of the domain.
         if domain.coefficient_ring() != codomain.coefficient_ring():
-            raise ValueError(
+            raise TypeError(
                 "Homomorphisms require the coefficient rings to be identical."
             )
-        if len(action_on_generators) != domain._num_vars:
+        if len(action_on_generators) != domain._ngens:
             raise TypeError(
                 "Cannot interpret {} as a homomorphism from {} to {}".format(
                     action_on_generators, domain, codomain
@@ -116,16 +156,12 @@ class WeightedPowerSeriesRingCappedHomomorphism:
             raise ValueError("Codomain precision cap is larger than domain precision cap.")
         for i in range(len(action_on_generators)):
             if action_on_generators[i].parent() != codomain:
-                raise ValueError("The elements of 'action_on_generators' are not members of the codomain.")
-            if not action_on_generators[i].is_homogeneous() or (action_on_generators[i].is_homogeneous() and action_on_generators[i].degree() != domain._weights[i]):
-                # TODO: allow filtered and not just graded morphisms.
-                # This done, __call__ below must be rewritten.
-                raise ValueError("Generators should be sent to homogeneous polynomials of the same degree.")
+                raise TypeError("The elements of 'action_on_generators' are not members of the codomain.")
 
         self._domain = domain
         self._codomain = codomain
         self._action_on_generators = action_on_generators
-        self._polynomial_action_on_generators = [g._underlying_polynomial() for g in self._action_on_generators]
+        self._polynomial_action_on_generators = [self._codomain._flatten(g) for g in self._action_on_generators]
         self._polynomial_homomorphism=self._domain._polynomial_ring.hom(self._polynomial_action_on_generators,self._codomain._polynomial_ring)
 
     def domain(self):
@@ -135,10 +171,9 @@ class WeightedPowerSeriesRingCappedHomomorphism:
         return self._codomain
 
     def __call__(self, f):
-        new_term_list=[]
-        for deg,coeff in f._term_list:
-            new_term_list.append((deg,self._polynomial_homomorphism(coeff)))
-        return self._codomain._element_class(self._codomain,new_term_list)
+        if f.parent() != self.domain():
+            raise TypeError("Input function must be an element of the domain.")
+        return f(self._action_on_generators)
 
     def __str__(self):
         return "Homomorphism from {} to {} defined by {} on generators".format(
@@ -158,10 +193,10 @@ class WeightedPowerSeriesRingCappedElement:
         """
         for term in term_list:
             if term[0] != term[1].degree():
-                raise ValueError("Input 'term_list' must be a list of pairs (N,g) where n is a non-negative integer and g is a homogeneous polynomial of degree N.")
+                raise TypeError("Input 'term_list' must be a list of pairs (N,g) where n is a non-negative integer and g is a homogeneous polynomial of degree N.")
             # We do no automatic coercions.
             if term[1].parent() != parent._polynomial_ring:
-                raise ValueError("Input coefficients must be members of parent.")
+                raise TypeError("Input coefficients must be members of parent.")
         self._term_list = term_list
         self._parent = parent
 
@@ -244,12 +279,24 @@ class WeightedPowerSeriesRingCappedElement:
     def __truediv__(self, other):
         """
         Divide self/other by an invertible power series using Newton's method.
+
+        TODO: rewrite to work in the noncommutative case.
         """
         if not other.is_unit():
             raise ValueError("Constant term of denominator must be a unit.")
         if self == self.parent().zero():
             return self.parent().zero()
         return self*other.inverse()
+
+    def map_coefficients(self,transformation):
+        new_term_list=[(deg,coeff.map_coefficients(transformation)) for deg,coeff in self._term_list]
+        return self.parent()._element_class(self.parent(),new_term_list)
+
+    def __floordiv__(self,n):
+        """
+        Divides the coefficients of self by n, which must support floordiv in the coefficient ring.
+        """
+        return self.map_coefficients(lambda c: c//n)
 
     def __rmul__(self,other):
         if other.parent() != self.parent().coefficient_ring():
@@ -261,6 +308,8 @@ class WeightedPowerSeriesRingCappedElement:
     def __mul__(self, other):
         """
         Multiplication assumes that the input term_lists are sorted by degree.
+
+        TODO: this can be parallelized in an obvious way.
         """
         term_dict={}
         for deg,coeff in self._term_list:
@@ -283,7 +332,7 @@ class WeightedPowerSeriesRingCappedElement:
 
     def __pow__(self, n):
         if n == 0:
-            return self.parent.one()
+            return self.parent().one()
         else:
             # This is probably not very pythonic. But, it is the only
             # way I can figure out how to get self**n to work. The only other option
@@ -321,6 +370,12 @@ class WeightedPowerSeriesRingCappedElement:
                 return False
         return True
 
+    def filtration_weight(self):
+        for deg,coeff in self._term_list:
+            if coeff != self.parent()._polynomial_ring.zero():
+                return deg
+        return self.parent().precision_cap()
+
     def degree(self):
         degree = -1
         for deg,coeff in self._term_list:
@@ -329,9 +384,42 @@ class WeightedPowerSeriesRingCappedElement:
         return degree
 
     def _underlying_polynomial(self):
-        out = self.parent()._polynomial_ring.zero()
+        return self.parent()._flatten(self)
+
+    def monomials(self):
+        """
+        Returns the monomials of self as elements of the power series ring.
+        """
+        monomial_list=[]
         for deg,coeff in self._term_list:
-            out+=coeff
+            for mnml in coeff.monomials():
+                if coeff.monomial_coefficient(mnml) != self.parent()._polynomial_ring.zero():
+                    monomial_list.append(self.parent()._element_class(self.parent(),[(deg,coeff.monomial_coefficient(mnml)*mnml)]))
+        return monomial_list
+    
+    def monomial_coefficient(self):
+        """
+        Returns the coefficient of a given monomial.
+        """
+        pass
+
+    def __call__(self,other_list):
+        """
+        Evaluates self at a list of inputs.
+        """
+        if len(other_list) != self.parent()._ngens:
+            raise TypeError("Incorrect number of input variables.")
+        other_parent=other_list[0].parent()
+        if self.parent()._coefficient_ring != other_parent._coefficient_ring:
+            raise ValueError("Coefficient rings must be the same.")
+        out = other_parent.zero()
+        for deg,coeff in self._term_list:
+            for m in coeff.monomials():
+                new=other_parent._element_class(other_parent,[(0,other_parent._polynomial_ring(coeff.monomial_coefficient(m)))])
+                degs=m.degrees()
+                for x in range(len(degs)):
+                    new *= other_list[x]**degs[x]
+                out += new
         return out
 
 
