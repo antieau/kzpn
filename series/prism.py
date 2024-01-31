@@ -2,10 +2,7 @@ from series.series import WeightedPowerSeriesRingCapped
 from series.series import WeightedPowerSeriesRingCappedHomomorphism
 from series.series import WeightedPowerSeriesRingCappedElement
 from series.delta import DeltaPowerSeriesCapped
-from series.delta import DeltaPowerSeriesCappedHomomrphism
-
-# TODO: rebase this to be a wrapper of a WeightedPowerSeriesRingCapped plus a Frobenius
-# endomorphism plus delta.
+from series.delta import DeltaPowerSeriesCappedHomomorphism
 
 class Prism():
     def __init__(self,underlying_delta_ring,distinguished_element):
@@ -13,10 +10,13 @@ class Prism():
         self._distinguished_element=distinguished_element
 
     def __str__(self):
-        return "Oriented prism given by the delta ring {} with distinguished element {}".format(
+        return "Oriented prism given by the {} with distinguished element {}".format(
             self._underlying_delta_ring,
             self._distinguished_element
         )
+
+    def __repr__(self):
+        return self.__str__()
 
     def prime(self):
         return self.underlying_delta_ring().prime()

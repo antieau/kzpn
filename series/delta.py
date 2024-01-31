@@ -2,9 +2,6 @@ from series.series import WeightedPowerSeriesRingCapped
 from series.series import WeightedPowerSeriesRingCappedHomomorphism
 from series.series import WeightedPowerSeriesRingCappedElement
 
-# TODO: rebase this to be a wrapper of a WeightedPowerSeriesRingCapped plus a Frobenius
-# endomorphism plus delta.
-
 class DeltaPowerSeriesCapped():
     def __init__(self,characteristic_prime,underlying_ring,deltas,frobenii=None):
         """
@@ -33,6 +30,9 @@ class DeltaPowerSeriesCapped():
             self._underlying_ring,
             self._deltas
         )
+
+    def __repr__(self):
+        return self.__str__()
 
     def delta(self,element):
         """
@@ -63,7 +63,7 @@ class DeltaPowerSeriesCapped():
         return self._underlying_ring.precision_cap()
 
     def underlying_ring(self):
-        return _underlying_ring
+        return self._underlying_ring
 
     def prime(self):
         return self._prime
