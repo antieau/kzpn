@@ -1,6 +1,11 @@
+"""
+This module builds prismatic envelopes in some generality.
+"""
+
+from sage.all import floor, log, binomial
+
 from series.series import WeightedPowerSeriesRingCapped
 from series.series import WeightedPowerSeriesRingCappedHomomorphism
-from series.series import WeightedPowerSeriesRingCappedElement
 from series.delta import DeltaPowerSeriesCapped
 from series.delta import DeltaPowerSeriesCappedHomomorphism
 from series.prism import Prism
@@ -19,23 +24,25 @@ class FrobeniusTwistedPrismaticEnvelope:
         self._prime = self._domain.prime()
 
         # Make new power series ring.
-        new_names = self._domain.underlying_ring()._names
+        new_names = self._domain.underlying_ring()._names.copy() # This is the problem.
         new_weights = self._domain.underlying_ring()._weights
         new_ngens = self._domain.underlying_ring()._ngens
-        print("new_ngens is {}".format(new_ngens))
+        print(f"new_ngens is {new_ngens}")
         num_f_array = []
         for a in range(len(self._relations)):
             d = relations[a].filtration_weight()
-            num_f = floor(log(self._domain.precision_cap() // d, p))
+            num_f = floor(log(self._domain.precision_cap() // d, self._prime))
             assert num_f > 0
             num_f_array.append(num_f)
-            new_weights += tuple([d * self._domain.prime() ** b for b in range(num_f)])
+            new_weights += tuple(d * self._domain.prime() ** b for b in range(num_f))
             new_ngens += num_f
-            new_names += ["f" + "{}{}".format(b, a) for b in range(num_f)]
+            new_names += [f"f{b}{a}" for b in range(num_f)]
 
-        print(new_names)
-        print(new_ngens)
-        print(new_weights)
+        print(f"new_names is {new_names}")
+        print(f"new_ngens is {new_ngens}")
+        print(f"new_weights is {new_weights}")
+        print(f"original ring is {self._domain.underlying_ring()}")
+        print("creating codomain_underlying_ring")
         codomain_underlying_ring = WeightedPowerSeriesRingCapped(
             self._domain.coefficient_ring(),
             self._domain.precision_cap(),
@@ -43,6 +50,8 @@ class FrobeniusTwistedPrismaticEnvelope:
             new_weights,
             names=new_names,
         )
+        print(f"codomain_underlying_ring is {codomain_underlying_ring}")
+        print(f"original ring is now {self._domain.underlying_ring()}")
 
         insertion_list = codomain_underlying_ring.gens()[
             0 : self._domain.underlying_ring()._ngens
@@ -51,7 +60,10 @@ class FrobeniusTwistedPrismaticEnvelope:
         # Make new power series ring homomorphism.
 
         underlying_ring_homomorphism = WeightedPowerSeriesRingCappedHomomorphism(
-            self._domain.underlying_ring(), codomain_underlying_ring, insertion_list
+            self._domain.underlying_ring(),
+            codomain_underlying_ring,
+            self._domain.coefficient_ring().hom(self._domain.coefficient_ring().gens()),
+            insertion_list,
         )
         codomain_distinguished_element = underlying_ring_homomorphism(
             self._domain.distinguished_element()
@@ -105,12 +117,15 @@ class FrobeniusTwistedPrismaticEnvelope:
         # For f_0,...,f_r we need lambda_0,...,lambda_{r-1}.
         for u in range(max(num_f_array) - 2):
             domain_lambda_units.append(
-                domain_lambda_units[u] ** p
+                domain_lambda_units[u] ** self._prime
                 / (
                     self._domain.underlying_ring().one()
                     - self._domain.underlying_delta_ring().delta(
                         domain_lambda_units[u]
-                        * (self._domain.distinguished_element() ** (p ** (u + 1)))
+                        * (
+                            self._domain.distinguished_element()
+                            ** (self._prime ** (u + 1))
+                        )
                     )
                 )
             )
@@ -124,24 +139,27 @@ class FrobeniusTwistedPrismaticEnvelope:
 
         codomain_relations = [underlying_ring_homomorphism(r) for r in self._relations]
 
-        codomain_Rs = []
+        codomain_rs = []
         pth_powers = []
 
         print(codomain_frobenii)
 
         for a in range(len(self._relations)):
             if num_f_array[a] == 1:
-                codomain_Rs.append(codomain_underlying_ring.zero())
+                codomain_rs.append(codomain_underlying_ring.zero())
                 pth_powers.append(codomain_underlying_ring.zero())
                 codomain_frobenii[offset] = codomain_underlying_ring.zero()
                 codomain_deltas[offset] = codomain_underlying_ring.zero()
                 offset += 1
             else:
                 # The first R and powers.
-                codomain_Rs.append(
+                codomain_rs.append(
                     partial_delta(codomain_relations[a])
                     / partial_delta(codomain_distinguished_element)
                 )
+
+                # Reduce the first relation to eliminate unnecessary variables.
+
                 pth_powers.append(
                     (
                         -codomain_underlying_ring(self._prime)
@@ -150,7 +168,7 @@ class FrobeniusTwistedPrismaticEnvelope:
                     )
                     * codomain_underlying_ring.gens()[offset + 1]
                     + codomain_distinguished_element**self._prime
-                    * codomain_Rs[offset - old_ngens]
+                    * codomain_rs[offset - old_ngens]
                 )
                 codomain_deltas[offset] = (
                     codomain_underlying_ring.one()
@@ -158,7 +176,7 @@ class FrobeniusTwistedPrismaticEnvelope:
                     * codomain_lambda_units[0]
                 ) * codomain_underlying_ring.gens()[offset] + partial_delta(
                     codomain_distinguished_element ** (self._prime**0)
-                ) * codomain_Rs[
+                ) * codomain_rs[
                     offset - old_ngens
                 ]
                 codomain_frobenii[offset] = partial_frobenius(
@@ -166,14 +184,14 @@ class FrobeniusTwistedPrismaticEnvelope:
                 ) ** (self._prime**0) * (
                     codomain_lambda_units[0]
                     * codomain_underlying_ring.gens()[offset + 1]
-                    + codomain_Rs[offset - old_ngens]
+                    + codomain_rs[offset - old_ngens]
                 )
 
                 offset += 1
 
                 for b in range(num_f_array[a] - 2):
-                    print("offset - old_ngens is {}".format(offset - old_ngens))
-                    codomain_Rs.append(
+                    print(f"offset - old_ngens is {offset - old_ngens}")
+                    codomain_rs.append(
                         (
                             codomain_underlying_ring.one()
                             - partial_delta(
@@ -184,16 +202,15 @@ class FrobeniusTwistedPrismaticEnvelope:
                         ).inverse()
                         * (
                             partial_delta(
-                                codomain_Rs[offset - old_ngens - 1]
+                                codomain_rs[offset - old_ngens - 1]
                                 + w1(
                                     codomain_lambda_units[b]
                                     * codomain_underlying_ring.gens()[offset],
-                                    codomain_Rs[offset - old_ngens - 1],
+                                    codomain_rs[offset - old_ngens - 1],
                                 )
                             )
                         )
                     )
-                    print(b + 1)
                     pth_powers.append(
                         (
                             (
@@ -204,7 +221,7 @@ class FrobeniusTwistedPrismaticEnvelope:
                             )
                             * codomain_underlying_ring.gens()[offset + 1]
                             + codomain_distinguished_element ** (self._prime ** (b + 2))
-                            * codomain_Rs[offset - old_ngens]
+                            * codomain_rs[offset - old_ngens]
                         )
                     )
                     codomain_deltas[offset] = (
@@ -215,7 +232,7 @@ class FrobeniusTwistedPrismaticEnvelope:
                         * codomain_lambda_units[b + 1]
                     ) * codomain_underlying_ring.gens()[offset + 1] + partial_delta(
                         codomain_distinguished_element ** (self._prime ** (b + 1))
-                    ) * codomain_Rs[
+                    ) * codomain_rs[
                         offset - old_ngens - 1
                     ]
                     codomain_frobenii[offset] = partial_frobenius(
@@ -223,13 +240,13 @@ class FrobeniusTwistedPrismaticEnvelope:
                     ) ** (self._prime ** (b + 1)) * (
                         codomain_lambda_units[b + 1]
                         * codomain_underlying_ring.gens()[offset + 1]
-                        + codomain_Rs[offset - old_ngens - 1]
+                        + codomain_rs[offset - old_ngens - 1]
                     )
 
                     offset += 1
 
                 # Now append zero for the top R.
-                codomain_Rs.append(codomain_underlying_ring.zero())
+                codomain_rs.append(codomain_underlying_ring.zero())
                 pth_powers.append(codomain_underlying_ring.zero())
                 codomain_frobenii[offset] = codomain_underlying_ring.zero()
                 codomain_deltas[offset] = codomain_underlying_ring.zero()

@@ -1,17 +1,22 @@
-from series.series import WeightedPowerSeriesRingCapped
+"""
+A module for delta-rings of the Breuil--Kisin variety.
+"""
+
 from series.series import WeightedPowerSeriesRingCappedHomomorphism
-from series.series import WeightedPowerSeriesRingCappedElement
 
 
 class DeltaPowerSeriesCapped:
+    """
+    A basic class for delta-rings based filtered power series rings.
+    """
     def __init__(self, characteristic_prime, underlying_ring, deltas, frobenii=None):
         """
         Optionally give the frobenius values. This will be useful when some pre-reduction has been done.
         """
         try:
             underlying_ring.coefficient_ring().frobenius_endomorphism()
-        except TypeError:
-            raise TypeError("Base ring must implement Frobenius.")
+        except TypeError as e:
+            raise TypeError("Base ring must implement Frobenius.") from e
         self._underlying_ring = underlying_ring
         self._prime = characteristic_prime
         self._prime_element = self._underlying_ring._unflatten(
@@ -30,13 +35,14 @@ class DeltaPowerSeriesCapped:
                 )
 
         self._frobenius = WeightedPowerSeriesRingCappedHomomorphism(
-            self._underlying_ring, self._underlying_ring, self._frobenii
+            self._underlying_ring,
+            self._underlying_ring,
+            self.coefficient_ring().frobenius_endomorphism(),
+            self._frobenii,
         )
 
     def __str__(self):
-        return "Delta ring structure on {} with delta given by {} on the generators".format(
-            self._underlying_ring, self._deltas
-        )
+        return f"Delta ring structure on {self._underlying_ring} with delta given by {self._deltas} on the generators"
 
     def __repr__(self):
         return self.__str__()
@@ -60,10 +66,7 @@ class DeltaPowerSeriesCapped:
         """
         Each application of w1 loses one bit of p-adic precision.
         """
-        return (x**self._prime + y**self._prime - (x + y) ** self._prime) // self._prime
-
-    def underlying_ring(self):
-        return self.underlying_ring()
+        return (a**self._prime + b**self._prime - (a + b) ** self._prime) // self._prime
 
     def coefficient_ring(self):
         return self._underlying_ring.coefficient_ring()
@@ -85,6 +88,9 @@ class DeltaPowerSeriesCapped:
 
 
 class DeltaPowerSeriesCappedHomomorphism:
+    """
+    A class for delta-ring homomorphisms.
+    """
     def __init__(self, domain, codomain, underlying_ring_homomorphism):
         """
         No check is made that this is compatible with the delta-ring structures.

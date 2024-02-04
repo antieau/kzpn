@@ -13,10 +13,13 @@ Exposed classes:
 
 """
 
-from sage.all import *
+from sage.all import PolynomialRing, TermOrder
 
 
 class WeightedPowerSeriesRingCapped:
+    """
+    Weighted power series ring.
+    """
     def __init__(
         self,
         coefficient_ring,
@@ -37,9 +40,9 @@ class WeightedPowerSeriesRingCapped:
         names - a list of variable names; this overrides prefix if given
 
         """
-        if coefficient_ring.is_ring() == False:
+        if coefficient_ring.is_ring() is False:
             raise TypeError("Argument 'coefficient_ring' must be a ring.")
-        if precision_cap.is_integer() == False or precision_cap <= 0:
+        if precision_cap.is_integer() is False or precision_cap <= 0:
             raise TypeError("Argument 'precision_cap' must be a positive integer.")
         self._coefficient_ring = coefficient_ring
         self._precision_cap = precision_cap
@@ -48,7 +51,7 @@ class WeightedPowerSeriesRingCapped:
         if names:
             self._names = names
         else:
-            self._names = [prefix + "{}".format(t) for t in range(self._ngens)]
+            self._names = [prefix + f"{t}" for t in range(self._ngens)]
         self._weights = tuple(weights)
         self._polynomial_ring = PolynomialRing(
             self._coefficient_ring,
@@ -68,7 +71,7 @@ class WeightedPowerSeriesRingCapped:
         if element.parent() != self:
             raise TypeError("Input must be a member of self.")
         out = self._polynomial_ring.zero()
-        for deg, coeff in element._term_list:
+        for _, coeff in element._term_list:
             out += coeff
         return out
 
@@ -145,12 +148,20 @@ class WeightedPowerSeriesRingCapped:
 
 
 class WeightedPowerSeriesRingCappedHomomorphism:
-    def __init__(self, domain, codomain, action_on_generators):
+    """
+    Homomorphisms of weighted power series ring.
+    """
+    def __init__(
+        self, domain, codomain, coefficient_homomorphism, action_on_generators
+    ):
         # A list of elements of codomian giving the image of each
         # generator of the domain.
-        if domain.coefficient_ring() != codomain.coefficient_ring():
+        if (
+            domain.coefficient_ring() != coefficient_homomorphism.domain()
+            or codomain.coefficient_ring() != coefficient_homomorphism.codomain()
+        ):
             raise TypeError(
-                "Homomorphisms require the coefficient rings to be identical."
+                "The coefficient homomorphism is not compatible with the given domain and codomain."
             )
         if len(action_on_generators) != domain._ngens:
             raise TypeError(
@@ -168,6 +179,7 @@ class WeightedPowerSeriesRingCappedHomomorphism:
                     "The elements of 'action_on_generators' are not members of the codomain."
                 )
 
+        self._coefficient_homomorphism = coefficient_homomorphism
         self._domain = domain
         self._codomain = codomain
         self._action_on_generators = action_on_generators
@@ -187,7 +199,8 @@ class WeightedPowerSeriesRingCappedHomomorphism:
     def __call__(self, f):
         if f.parent() != self.domain():
             raise TypeError("Input function must be an element of the domain.")
-        return f(self._action_on_generators)
+        g = f(self._action_on_generators)
+        return g.map_coefficients(self._coefficient_homomorphism)
 
     def __str__(self):
         return "Homomorphism from {} to {} defined by {} on generators".format(
@@ -199,6 +212,9 @@ class WeightedPowerSeriesRingCappedHomomorphism:
 
 
 class WeightedPowerSeriesRingCappedElement:
+    """
+    Elements of weighted power series ring.
+    """
     def __init__(self, parent, term_list):
         """
         The argument term_list is a list [(N,coefficient)] representing g*T^N
@@ -228,7 +244,7 @@ class WeightedPowerSeriesRingCappedElement:
             return str("0 + O(F^{})".format(self.parent().precision_cap()))
         else:
             return_str = ""
-            for deg, coef in self._term_list:
+            for _, coef in self._term_list:
                 if coef != self.parent()._polynomial_ring.zero():
                     return_str += str(coef) + " + "
             if len(return_str) == 0:
@@ -379,7 +395,7 @@ class WeightedPowerSeriesRingCappedElement:
             # which would make for garbage code.
             # From sage/arith/power.pyx
             apow = self
-            while not (n & 1):  # While even...
+            while not n & 1:  # While even...
                 apow *= apow
                 # Bitshift
                 n >>= 1
@@ -402,7 +418,7 @@ class WeightedPowerSeriesRingCappedElement:
         Constants and zero count as homogeneous.
         """
         non_zero_terms = 0
-        for deg, coeff in self._term_list:
+        for _, coeff in self._term_list:
             if not coeff.is_zero():
                 non_zero_terms += 1
             if non_zero_terms > 1:
@@ -448,7 +464,6 @@ class WeightedPowerSeriesRingCappedElement:
         """
         Returns the coefficient of a given monomial.
         """
-        pass
 
     def __call__(self, other_list):
         """
@@ -462,7 +477,7 @@ class WeightedPowerSeriesRingCappedElement:
         if self.parent()._coefficient_ring != other_parent._coefficient_ring:
             raise ValueError("Coefficient rings must be the same.")
         out = other_parent.zero()
-        for deg, coeff in self._term_list:
+        for _, coeff in self._term_list:
             for m in coeff.monomials():
                 new = other_parent._element_class(
                     other_parent,
@@ -473,11 +488,3 @@ class WeightedPowerSeriesRingCappedElement:
                     new *= other_list[x] ** degs[x]
                 out += new
         return out
-
-
-if __name__ == "__main__":
-    from sage.all import Zp, Zq
-    from sage.rings.power_series_ring import PowerSeriesRing
-    import doctest
-
-    doctest.testmod()
