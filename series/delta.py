@@ -9,6 +9,7 @@ class DeltaPowerSeriesCapped:
     """
     A basic class for delta-rings based filtered power series rings.
     """
+
     def __init__(self, characteristic_prime, underlying_ring, deltas, frobenii=None):
         """
         Optionally give the frobenius values. This will be useful when some pre-reduction has been done.
@@ -91,6 +92,7 @@ class DeltaPowerSeriesCappedHomomorphism:
     """
     A class for delta-ring homomorphisms.
     """
+
     def __init__(self, domain, codomain, underlying_ring_homomorphism):
         """
         No check is made that this is compatible with the delta-ring structures.

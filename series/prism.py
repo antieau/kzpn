@@ -10,6 +10,7 @@ class Prism:
 
     def __init__(self, underlying_delta_ring, distinguished_element):
         assert distinguished_element.parent() == underlying_delta_ring.underlying_ring()
+        # The following assertion does take a tiny amount of work.
         assert underlying_delta_ring.delta(distinguished_element).is_unit()
         self._underlying_delta_ring = underlying_delta_ring
         self._distinguished_element = distinguished_element

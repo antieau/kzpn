@@ -20,6 +20,7 @@ class WeightedPowerSeriesRingCapped:
     """
     Weighted power series ring.
     """
+
     def __init__(
         self,
         coefficient_ring,
@@ -28,6 +29,7 @@ class WeightedPowerSeriesRingCapped:
         weights,
         prefix="z",
         names=None,
+        order=None,
     ):
         """
         Returns a new WeightedPowerSeriesRingCapped.
@@ -48,16 +50,22 @@ class WeightedPowerSeriesRingCapped:
         self._precision_cap = precision_cap
         self._ngens = ngens
         self._prefix = prefix
+        self._weights = tuple(weights)
+        self._gens = None
+
         if names:
             self._names = names
         else:
             self._names = [prefix + f"{t}" for t in range(self._ngens)]
-        self._weights = tuple(weights)
+        if order:
+            self._order = order
+        else:
+            self._order = TermOrder("wdeglex", self._weights)
+
         self._polynomial_ring = PolynomialRing(
             self._coefficient_ring,
-            self._prefix,
-            self._ngens,
-            order=TermOrder("wdeglex", self._weights),
+            names=self._names,
+            order=self._order,
         )
         self._element_class = WeightedPowerSeriesRingCappedElement
 
@@ -132,12 +140,13 @@ class WeightedPowerSeriesRingCapped:
             raise NotImplementedError("Coercion is not implemented.")
 
     def gens(self):
-        self._gens = []
-        for generator in self._polynomial_ring.gens():
-            # We have to coerce the SAGE integer into a Python integer.
-            self._gens.append(
-                self._element_class(self, [(int(generator.degree()), generator)])
-            )
+        if not self._gens:
+            self._gens = []
+            for generator in self._polynomial_ring.gens():
+                # We have to coerce the SAGE integer into a Python integer.
+                self._gens.append(
+                    self._element_class(self, [(int(generator.degree()), generator)])
+                )
         return self._gens
 
     def zero(self):
@@ -151,6 +160,7 @@ class WeightedPowerSeriesRingCappedHomomorphism:
     """
     Homomorphisms of weighted power series ring.
     """
+
     def __init__(
         self, domain, codomain, coefficient_homomorphism, action_on_generators
     ):
@@ -186,6 +196,7 @@ class WeightedPowerSeriesRingCappedHomomorphism:
         self._polynomial_action_on_generators = [
             self._codomain._flatten(g) for g in self._action_on_generators
         ]
+        # TODO: this probably does not behave correctly on coefficients in general.
         self._polynomial_homomorphism = self._domain._polynomial_ring.hom(
             self._polynomial_action_on_generators, self._codomain._polynomial_ring
         )
@@ -215,6 +226,7 @@ class WeightedPowerSeriesRingCappedElement:
     """
     Elements of weighted power series ring.
     """
+
     def __init__(self, parent, term_list):
         """
         The argument term_list is a list [(N,coefficient)] representing g*T^N
@@ -488,3 +500,44 @@ class WeightedPowerSeriesRingCappedElement:
                     new *= other_list[x] ** degs[x]
                 out += new
         return out
+
+    def _homogeneous_part(self, weight):
+        """
+        Returns the pure weight part of a power series as a power series.
+        """
+        for deg, coeff in self._term_list:
+            if deg == weight:
+                return self.__class__(self._parent, [(deg, coeff)])
+            elif deg > weight:
+                return self.parent().zero()
+
+    def __getitem__(self, degs):
+        """
+        Takes a tuple and returns the coefficient of the corresponding monomial.
+        """
+        assert len(degs) == len(self.parent()._weights)
+        target_weight = sum(a * b for a, b in zip(degs, self.parent()._weights))
+        for deg, coeff in self._term_list:
+            if deg == target_weight:
+                return coeff[degs]
+            elif deg > target_weight:
+                break
+        return self._parent._coefficient_ring.zero()
+
+    def is_generator(self):
+        for g in self._parent.gens():
+            if self == g:
+                return True
+        return False
+
+    def _generator_terms(self):
+        l = []
+        for g in self._parent.gens():
+            for _, coeff in g._term_list:
+                if self[coeff.degrees()] != self._parent._coefficient_ring.zero():
+                    l.append(g)
+        return l
+
+    def _eliminates_generator(self, g):
+        assert g._parent == self._parent
+        assert g.is_generator()
