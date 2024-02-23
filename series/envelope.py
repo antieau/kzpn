@@ -107,39 +107,46 @@ class FrobeniusTwistedPrismaticEnvelope:
 
         ### Initialize d powers.
         d_powers = []
+        delta_d_powers = []
+        frobenius_d_powers = []
         if max(num_f_array) > 1:
-            d_powers.append(codomain_distinguished_unit)
-        for u in range(max(num_f_array) - 2):
+            d_powers.append(codomain_distinguished_element)
+            print("a")
+            delta_d_powers.append(partial_delta(d_powers[0]))
+            frobenius_d_powers.append(partial_frobenius(codomain_distinguished_element))
+        for u in range(max(num_f_array) - 1):
             d_powers.append(d_powers[u] ** self._prime)
+            print("b")
+            delta_d_powers.append(partial_delta(d_powers[u + 1]))
+            frobenius_d_powers.append(frobenius_d_powers[u] ** self._prime)
 
         # d_times_lambda
         d_times_lambda = []
         delta_d_times_lambda = []
         inverses = []
 
-        ### TODO: contemplate doing this within codomain to begin with.
         ### Initialize lambda_u.
         codomain_lambda_units = []
         if max(num_f_array) > 1:
-            codomain_lambda_units.append(
-                -(partial_delta(codomain_distinguished_element).inverse())
-            )
+            codomain_lambda_units.append(-(delta_d_powers[0].inverse()))
 
             d_times_lambda.append(codomain_lambda_units[0] * d_powers[1])
+            print("c")
             delta_d_times_lambda.append(partial_delta(d_times_lambda[0]))
-            inverses.append(delta_d_times_lambda[0])
+            inverses.append(
+                (codomain_underlying_ring.one() - delta_d_times_lambda[0]).inverse()
+            )
 
         # For f_0,...,f_r we need lambda_0,...,lambda_{r-1}.
         for u in range(max(num_f_array) - 2):
             codomain_lambda_units.append(
-                codomain_lambda_units[u] ** self._prime
-                / (
-                    codomain.underlying_ring().one()
-                    - partial_delta(
-                        codomain_lambda_units[u]
-                        * (codomain_distinguished_element ** (self._prime ** (u + 1)))
-                    )
-                )
+                (codomain_lambda_units[u] ** self._prime) * inverses[u]
+            )
+            d_times_lambda.append(codomain_lambda_units[u + 1] * d_powers[u + 2])
+            print("d")
+            delta_d_times_lambda.append(partial_delta(d_times_lambda[u + 1]))
+            inverses.append(
+                (codomain_underlying_ring.one() - delta_d_times_lambda[u + 1]).inverse()
             )
 
         ### Initialize relations.
@@ -165,26 +172,25 @@ class FrobeniusTwistedPrismaticEnvelope:
                 # The first R and powers.
 
                 ### Temporary variables.
-                pd_cde = partial_delta(codomain_distinguished_element)
-                cde_pth_power = codomain_distinguished_element**self._prime
-                codomain_rs.append(partial_delta(codomain_relations[a]) / pd_cde)
+                print("e")
+                codomain_rs.append(
+                    partial_delta(codomain_relations[a]) / delta_d_powers[0]
+                )
 
                 pth_powers.append(
-                    (
-                        -codomain_underlying_ring(self._prime)
-                        + cde_pth_power * codomain_lambda_units[a]
-                    )
+                    (-codomain_underlying_ring(self._prime) + d_times_lambda[0])
                     * codomain_underlying_ring.gens()[offset + 1]
-                    + cde_pth_power * codomain_rs[offset - old_ngens]
+                    + d_powers[1] * codomain_rs[offset - old_ngens]
                 )
                 codomain_deltas[offset] = (
-                    codomain_underlying_ring.one() + pd_cde * codomain_lambda_units[0]
-                ) * codomain_underlying_ring.gens()[offset] + pd_cde * codomain_rs[
+                    codomain_underlying_ring.one()
+                    + delta_d_powers[0] * codomain_lambda_units[0]
+                ) * codomain_underlying_ring.gens()[offset] + delta_d_powers[
+                    0
+                ] * codomain_rs[
                     offset - old_ngens
                 ]
-                codomain_frobenii[offset] = partial_frobenius(
-                    codomain_distinguished_element
-                ) * (
+                codomain_frobenii[offset] = frobenius_d_powers[0] * (
                     codomain_lambda_units[0]
                     * codomain_underlying_ring.gens()[offset + 1]
                     + codomain_rs[offset - old_ngens]
@@ -193,53 +199,37 @@ class FrobeniusTwistedPrismaticEnvelope:
                 offset += 1
 
                 for b in range(num_f_array[a] - 2):
+                    print("f")
                     codomain_rs.append(
                         (
-                            codomain_underlying_ring.one()
-                            - partial_delta(
+                            inverses[b]
+                            * (partial_delta(codomain_rs[offset - old_ngens - 1])
+                            + w1(
                                 codomain_lambda_units[b]
-                                * codomain_distinguished_element
-                                ** (self._prime ** (b + 1))
-                            )
-                        ).inverse()
-                        * (
-                            partial_delta(
-                                codomain_rs[offset - old_ngens - 1]
-                                + w1(
-                                    codomain_lambda_units[b]
-                                    * codomain_underlying_ring.gens()[offset],
-                                    codomain_rs[offset - old_ngens - 1],
-                                )
-                            )
+                                * codomain_underlying_ring.gens()[offset],
+                                codomain_rs[offset - old_ngens - 1],
+                            ))
                         )
                     )
                     pth_powers.append(
                         (
                             (
                                 -codomain_underlying_ring(self._prime)
-                                + codomain_distinguished_element
-                                ** (self._prime ** (b + 2))
-                                * codomain_lambda_units[b + 1]
+                                + d_times_lambda[b + 1]
                             )
                             * codomain_underlying_ring.gens()[offset + 1]
-                            + codomain_distinguished_element ** (self._prime ** (b + 2))
-                            * codomain_rs[offset - old_ngens]
+                            + d_powers[b + 2] * codomain_rs[offset - old_ngens]
                         )
                     )
                     codomain_deltas[offset] = (
                         codomain_underlying_ring.one()
-                        + partial_delta(
-                            codomain_distinguished_element ** (self._prime ** (b + 1))
-                        )
-                        * codomain_lambda_units[b + 1]
-                    ) * codomain_underlying_ring.gens()[offset + 1] + partial_delta(
-                        codomain_distinguished_element ** (self._prime ** (b + 1))
-                    ) * codomain_rs[
+                        + delta_d_powers[b + 1] * codomain_lambda_units[b + 1]
+                    ) * codomain_underlying_ring.gens()[offset + 1] + delta_d_powers[
+                        b + 1
+                    ] * codomain_rs[
                         offset - old_ngens - 1
                     ]
-                    codomain_frobenii[offset] = partial_frobenius(
-                        codomain_distinguished_element
-                    ) ** (self._prime ** (b + 1)) * (
+                    codomain_frobenii[offset] = frobenius_d_powers[b + 1] * (
                         codomain_lambda_units[b + 1]
                         * codomain_underlying_ring.gens()[offset + 1]
                         + codomain_rs[offset - old_ngens - 1]

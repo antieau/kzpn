@@ -52,6 +52,8 @@ class WeightedPowerSeriesRingCapped:
         self._prefix = prefix
         self._weights = tuple(weights)
         self._gens = None
+        self._one = None
+        self._zero = None
 
         if names:
             self._names = names
@@ -93,7 +95,7 @@ class WeightedPowerSeriesRingCapped:
         out_degrees = {}
         for m in flat_polynomial.monomials():
             deg = m.degree()
-            if deg < self.precision_cap():
+            if deg < self._precision_cap:
                 if deg in out_degrees:
                     out_degrees[deg] += flat_polynomial.monomial_coefficient(m) * m
                 else:
@@ -150,10 +152,14 @@ class WeightedPowerSeriesRingCapped:
         return self._gens
 
     def zero(self):
-        return self._element_class(self, [])
+        if not self._zero:
+            self._zero = self._element_class(self, [])
+        return self._zero
 
     def one(self):
-        return self._element_class(self, [(0, self._polynomial_ring.one())])
+        if not self._one:
+            self._one = self._element_class(self, [(0, self._polynomial_ring.one())])
+        return self._one
 
 
 class WeightedPowerSeriesRingCappedHomomorphism:
@@ -179,7 +185,7 @@ class WeightedPowerSeriesRingCappedHomomorphism:
                     action_on_generators, domain, codomain
                 )
             )
-        if codomain.precision_cap() > domain.precision_cap():
+        if codomain._precision_cap > domain._precision_cap:
             raise ValueError(
                 "Codomain precision cap is larger than domain precision cap."
             )
@@ -232,6 +238,7 @@ class WeightedPowerSeriesRingCappedElement:
         The argument term_list is a list [(N,coefficient)] representing g*T^N
         where g is a homogoneous polynomial of degree N.
         """
+        """
         for term in term_list:
             if term[0] != term[1].degree():
                 raise TypeError(
@@ -240,6 +247,7 @@ class WeightedPowerSeriesRingCappedElement:
             # We do no automatic coercions.
             if term[1].parent() != parent._polynomial_ring:
                 raise TypeError("Input coefficients must be members of parent.")
+        """
         self._term_list = term_list
         self._parent = parent
 
@@ -253,7 +261,7 @@ class WeightedPowerSeriesRingCappedElement:
         it is not guaranteed to be in lexicographic ordering or anything else useful.
         """
         if len(self._term_list) == 0:
-            return str("0 + O(F^{})".format(self.parent().precision_cap()))
+            return str("0 + O(F^{})".format(self.parent()._precision_cap))
         else:
             return_str = ""
             for _, coef in self._term_list:
@@ -261,7 +269,7 @@ class WeightedPowerSeriesRingCappedElement:
                     return_str += str(coef) + " + "
             if len(return_str) == 0:
                 return_str = "0 + "
-            return return_str + "O(F^{})".format(self.parent().precision_cap())
+            return return_str + "O(F^{})".format(self.parent()._precision_cap)
 
     def __repr__(self):
         return self.__str__()
@@ -282,19 +290,7 @@ class WeightedPowerSeriesRingCappedElement:
         return self.__class__(self.parent(), new_term_list)
 
     def __sub__(self, other):
-        term_dict = dict(self._term_list)
-        for deg, coeff in other._term_list:
-            if deg in term_dict:
-                term_dict[deg] -= coeff
-            else:
-                term_dict[deg] = -coeff
-        sorted_degrees = list(term_dict)
-        sorted_degrees.sort()
-        new_term_list = []
-        for deg in sorted_degrees:
-            if not term_dict[deg].is_zero():
-                new_term_list.append((deg, term_dict[deg]))
-        return self.__class__(self.parent(), new_term_list)
+        return self + (-other)
 
     def __neg__(self):
         return self.__class__(
@@ -302,10 +298,10 @@ class WeightedPowerSeriesRingCappedElement:
         )
 
     def __eq__(self, other):
-        pass
+        return self._term_list == other._term_list
 
     def __ne__(self, other):
-        pass
+        return not self == other
 
     def is_unit(self):
         if (
@@ -329,7 +325,7 @@ class WeightedPowerSeriesRingCappedElement:
             ],
         )
         N = 1
-        while N < self.parent().precision_cap():
+        while N < self.parent()._precision_cap:
             N = 2 * N
             newton_approximation_inverse = (
                 newton_approximation_inverse
@@ -382,7 +378,7 @@ class WeightedPowerSeriesRingCappedElement:
         term_dict = {}
         for deg, coeff in self._term_list:
             for deg1, coeff1 in other._term_list:
-                if deg + deg1 < self.parent().precision_cap():
+                if deg + deg1 < self.parent()._precision_cap:
                     if deg + deg1 in term_dict:
                         term_dict[deg + deg1] += coeff * coeff1
                     else:
@@ -441,7 +437,7 @@ class WeightedPowerSeriesRingCappedElement:
         for deg, coeff in self._term_list:
             if coeff != self.parent()._polynomial_ring.zero():
                 return deg
-        return self.parent().precision_cap()
+        return self.parent()._precision_cap
 
     def degree(self):
         degree = -1
