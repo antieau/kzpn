@@ -31,9 +31,9 @@ def test_syntomic(p,i,n,expected_homology):
     z=A.gen()
     envf = PrismaticEnvelopeF(p,n,z+p,prec_F,total_precision)
     envg = PrismaticEnvelopeG(p,z+p,prec_F,total_precision)
-    syn = SyntomicComplex(envf,envg)
-    syn._compute_matrices(i,prec_F)
-    syn._compute_chain_complex(prec_F)
+    syn = SyntomicComplex(prec_F, i,envf,envg)
+    syn._compute_matrices()
+    syn._compute_chain_complex()
     syn._compute_homology()
     assert syn.homology.orders == expected_homology, "expected: {}, got: {}".format(expected_homology, syn.homology.orders)
 

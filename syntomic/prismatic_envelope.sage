@@ -230,6 +230,7 @@ class PrismaticEnvelopeF():
             print('computing basis')
 
         self._basis = []
+        self._gen_names = []
         for j in range(self.prec_F):
             e = j
             monomial = self.ring(1)
@@ -241,8 +242,11 @@ class PrismaticEnvelopeF():
                 e = e//self.p
                 i += 1
             self._basis.append(monomial)
+            self._gen_names.append(str(monomial))
     def basis(self):
         return self._basis
+    def gen_names(self):
+        return self._gen_names
     def nygaard_basis(self,i):
         result = []
         for j in range(self.prec_F):
@@ -250,6 +254,15 @@ class PrismaticEnvelopeF():
             a = max(i - j // self.n, 0) 
             monomial *= self.dtilde^a
             result.append(monomial)
+        return result
+    def nygaard_gen_names(self,i):
+        result = []
+        for j in range(self.prec_F):
+            string = self._gen_names[j]
+            a = max(i - j // self.n, 0) 
+            if(a>0):
+                string = "d^{}*".format(a) + string
+            result.append(string)
         return result
     def element_to_vector(self,val):
         assert(val.parent() == self.ring)
@@ -332,10 +345,10 @@ class PrismaticEnvelopeG():
             result += self.p^i * m.degrees()[i]
         return result
     def trim(self,val):
-        if(val.parent() == self.ring):
-            return self._trim(val)
         if(val.parent() == self.nygaard_ring):
             return self._trim_nygaard(val)
+        else:  # (val.parent() == self.ring), but also the rational case...
+            return self._trim(val)
     def _trim(self,val):
         result = self.ring(0)
         for m in val.monomials():

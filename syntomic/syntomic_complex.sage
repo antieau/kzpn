@@ -3,6 +3,7 @@ from syntomic.sage_import import sage_import
 sage_import('syntomic/prismatic_envelope', fromlist=['PrismaticEnvelopeF', 'PrismaticEnvelopeG'])
 sage_import('syntomic/matrices', fromlist=['divide_left', 'divide_right'])
 sage_import('syntomic/homology', fromlist=['Homology'])
+sage_import('syntomic/name', fromlist=['name_vector'])
 
 
 
@@ -22,7 +23,13 @@ class SyntomicComplex():
         self.i=i
         self.p = prismaticEnvelopeF.p
         self.basering = prismaticEnvelopeF.basering.base_ring()
+        self._initialize_generator_names()
         self._compute_matrices()
+    def _initialize_generator_names(self):
+        self._namesN0 = self.prismaticEnvelopeF.nygaard_gen_names(self.i)[1:self.prec_F]
+        self._namesP0 = [name + '*∂' for name in self.prismaticEnvelopeF.gen_names()][1:self.prec_F]
+        self._namesN1 = [name + '*∇z' for name in self.prismaticEnvelopeF.nygaard_gen_names(self.i-1)][0:self.prec_F-1]
+        self._namesP1 = [name + '*∇z∂' for name in self.prismaticEnvelopeF.gen_names()][0:self.prec_F-1]
     def _compute_can0(self):
         if(self.debug):
             print('computing can0')
@@ -218,3 +225,12 @@ class SyntomicComplex():
             self.homology_mod_p.representatives[0]=[]
             self.homology_mod_p.representatives[1]=[]
             self.homology_mod_p.representatives[2]=[]
+    def name_element(self,degree,vector):
+        if(degree == 0):
+            return name_vector(self._namesN0, vector)
+        elif(degree == 1):
+            return name_vector(self._namesP0 + self._namesN1, vector)
+        elif(degree == 2):
+            return name_vector(self._namesP1, vector)
+        else:
+            return '0'

@@ -4,14 +4,19 @@ sage_import('syntomic/matrices', fromlist=['integral_inverse'])
 sage_import('syntomic/homology', fromlist=['Homology','morphisms_homology'])
 
 class FilteredComplex():
-    def __init__(self, base_ring, complexes, maps):
+    def __init__(self, base_ring, complexes, maps, min_filt):
         self._base_ring = base_ring
         self.complexes = complexes
         self.maps = maps
+        self.min_filt = min_filt
+        max_filt = max(self.complexes.keys())
+        self.last_page = max_filt - min_filt
         self._sanitize_maps() 
         self._strata={}
         self._pages={}
         self._differentials={}
+        self._compute_pages()
+        self._compute_differentials()
     def _zero_map(self,s,deg):
         nrows = self._get_complex(s-1).free_module_rank(deg)
         ncols = self._get_complex(s).free_module_rank(deg)
@@ -27,11 +32,8 @@ class FilteredComplex():
                     self._zero_map(s,deg)
                 if not deg in self.maps[s+1]:
                     self._zero_map(s+1,deg)
-    def _get_complex(self,filtration, trunc_min=None, trunc_max=None):
-        if trunc_max is not None and filtration > trunc_max:
-            return ChainComplex(base_ring=self._base_ring)
-        if trunc_min is not None:
-            filtration = max(filtration, trunc_min)
+    def _get_complex(self,filtration):
+        filtration = max(filtration, self.min_filt)
         if filtration in self.complexes:
             result = self.complexes[filtration]
             return result
@@ -57,18 +59,11 @@ class FilteredComplex():
                     target_rk = 0
                 result[n] = matrix(self._base_ring, nrows=target_rk, ncols=source_rk)
             return result    
-    def _get_map(self,source_filtration,target_filtration, trunc_min=None, trunc_max=None):
+    def _get_map(self,source_filtration,target_filtration):
         if source_filtration<target_filtration:
             raise ValueError("_get_map: source_filtration needs to be bigger than target_filtration")
-        if trunc_max is not None and source_filtration>trunc_max:
-            result = {}
-            target = self._get_complex(target_filtration, trunc_min, trunc_max)
-            for n in target.nonzero_degrees():
-                result[n] = matrix(self._base_ring,ncols=0, nrows=target.free_module_rank(n))
-            return result
-        if trunc_min is not None:
-            source_filtration = max(source_filtration, trunc_min)
-            target_filtration = max(target_filtration, trunc_min)
+        source_filtration = max(source_filtration, self.min_filt)
+        target_filtration = max(target_filtration, self.min_filt)
         if source_filtration==target_filtration:
             result = {}
             source = self._get_complex(source_filtration)
@@ -79,26 +74,28 @@ class FilteredComplex():
         for i in range(target_filtration+2, source_filtration+1):
             morphism = compose_morphism(morphism,self._get_single_map(i))
         return morphism
-    def _get_stratum(self,r,s, trunc_min=None, trunc_max=None):    
+    def _get_stratum(self,r,s):    
         bottom = s
         top = s+r
-        if trunc_min is not None:
-            bottom = max(bottom, trunc_min)
-            top = max(top, trunc_min)
-        if trunc_max is not None:
-            bottom = min(bottom, trunc_max+1)
-            top = min(top, trunc_max+1)
+        bottom = max(bottom, self.min_filt)
+        top = max(top, self.min_filt)
         target = self._get_complex(bottom)
         source = self._get_complex(top)
         morphism = self._get_map(top,bottom)
         return cofiber(source, target, morphism)
-    def _get_page(self,r,s, trunc_min=None, trunc_max=None):
-        source = self._get_stratum(r,s, trunc_min, trunc_max)
-        target = self._get_stratum(r,s-r+1, trunc_min, trunc_max)
-        morphism = morphism_cofiber(self._get_map(s+r,s+1, trunc_min, trunc_max),self._get_map(s,s-r+1, trunc_min, trunc_max))
+    def _compute_page(self,r,s):
+        source = self._get_stratum(r,s)
+        target = self._get_stratum(r,s-r+1)
+
+        map_top = self._get_map(s+r,s+1)
+        morphism = morphism_cofiber(map_top,self._get_map(s,s-r+1))
         source_homology = Homology(source)
         target_homology = Homology(target)
+
         morphism_h = morphisms_homology(source_homology,target_homology,morphism)
+
+        #map to stratum(1,s):
+        morphism_e1 = morphism_cofiber(map_top, self._get_map(s,s))
 
         page = {}
         #compute image
@@ -112,42 +109,149 @@ class FilteredComplex():
             else:
                 target_orders=[]
             image = Image(self._base_ring, source_orders, target_orders, f)
-            page[n] = image
+            orders = image.orders
+            projection = image.projection * source_homology.projection(n)
+            representatives = source_homology.representative(n) * image.representatives
+
+            if n in morphism_e1:
+                morphism_e1n=morphism_e1[n]
+            else:
+                morphism_e1n=matrix(self._base_ring, 0, 0)
+            if r>1:
+                representatives_e1 = self.page(1,s,n).projection * morphism_e1n * representatives
+            else:
+                representatives_e1 = identity_matrix(self._base_ring, len(image.orders))
+            page[n] = PageData(image.orders, representatives_e1, representatives, projection)
+            #page[n]['representatives_e1']
+            #to compute, compute map f from stratum(r,s) -> stratum(1,s)
+            #then compute induced map on page by following
+            #   e(1,s)[n].projection*f*e(r,s)[n].representatives
         return page
-    def _get_differential(self,r,s,trunc_min=None,trunc_max=None):
+    def _compute_differential(self,r,s):
         #Want differential from F^s / F^{s+r} (stratum r,s) to F^{s+r}/F^{s+2r} (stratum r, s+r)
-        source = self._get_stratum(r,s,trunc_min,trunc_max)
-        target = self._get_stratum(r,s+r,trunc_min,trunc_max)
-        page_source = self._get_page(r,s,trunc_min,trunc_max)
-        page_target = self._get_page(r,s+r,trunc_min,trunc_max)
-        source_homology = Homology(source)
-        target_homology = Homology(target)
+        source = self._get_stratum(r,s)
+        target = self._get_stratum(r,s+r)
+        page_source = self._compute_page(r,s)
+        page_target = self._compute_page(r,s+r)
+        #source_homology = Homology(source)
+        #target_homology = Homology(target)
         differential = {}
         nz = set([n-1 for n in target.nonzero_degrees()] + list(source.nonzero_degrees()))
         for deg in nz:
             #differential is induced by map of complexes C^n(F^s / F^{s+r}) -> C^{n+1}(F^{s+r}/F^{s+2r}), (-1)^n*block_matrix([0,0],[id,0])
-            cols0 = self._get_complex(s+r,trunc_min,trunc_max).free_module_rank(deg+1)
-            rows0 = self._get_complex(s+2*r,trunc_min,trunc_max).free_module_rank(deg+2)
-            cols1 = self._get_complex(s,trunc_min,trunc_max).free_module_rank(deg)
-            rows1 = self._get_complex(s+r,trunc_min,trunc_max).free_module_rank(deg+1)
+            cols0 = self._get_complex(s+r).free_module_rank(deg+1)
+            rows0 = self._get_complex(s+2*r).free_module_rank(deg+2)
+            cols1 = self._get_complex(s).free_module_rank(deg)
+            rows1 = self._get_complex(s+r).free_module_rank(deg+1)
             assert(rows1 == cols0)
             delta = block_matrix([[matrix(self._base_ring,rows0,cols0),matrix(self._base_ring,rows0,cols1)],[identity_matrix(self._base_ring, rows1), matrix(self._base_ring, rows1, cols1)]])
             if(deg % 2 == 1):
                 delta = -delta
-            delta_on_homology = target_homology.projection(deg+1) * delta * source_homology.representative(deg)
+            #delta_on_homology = target_homology.projection(deg+1) * delta * source_homology.representative(deg)
             #then we need induced map on image.
             
             if deg in page_source:
                 rep_source = page_source[deg].representatives
             else:
-                rep_source = matrix(self._base_ring, nrows=delta_on_homology.ncols(),ncols=0)
+                rep_source = matrix(self._base_ring, nrows=delta.ncols(),ncols=0)
             if deg+1 in page_target:
                 proj_target = page_target[deg+1].projection
             else:
-                proj_target = matrix(self._base_ring, nrows=0, ncols=delta_on_homology.nrows())
-            differential[deg] = proj_target*delta_on_homology*rep_source
-
+                proj_target = matrix(self._base_ring, nrows=0, ncols=delta.nrows())
+            differential[deg] = proj_target*delta*rep_source
         return differential
+    def _compute_pages(self):
+        max_filt = max(self.complexes.keys())
+        min_filt = self.min_filt
+        for r in range(1,max_filt-min_filt+1):
+            for s in range(min_filt, max_filt+1):
+                self._pages[r,s] = self._compute_page(r,s)
+    def _compute_differentials(self):
+        max_filt = max(self.complexes.keys())
+        min_filt = self.min_filt
+        for r in range(1,max_filt-min_filt):
+            for s in range(min_filt, max_filt+1):
+                self._differentials[r,s] = self._compute_differential(r,s)
+    def page(self,r,s,n=None):
+        if(r < 1):
+            raise ValueError("Page index must be >= 1")
+        r = min(r, self.last_page)
+        if (r,s) in self._pages:
+            page = self._pages[r,s]
+        else:
+            page = {}
+        if n is None:
+            return page
+        if n in page:
+            return page[n]
+        stratum = self._get_stratum(r,s)
+        rank = stratum.free_module_rank(n) #this could be computed a bit cheaper but I don't think it matters
+        if (r>1):
+            e1_rank=len(self.page(1,s,n).orders)
+        else:
+            e1_rank=0
+        trivial_page_data = PageData([], matrix(self._base_ring, nrows=e1_rank, ncols=0), matrix(self._base_ring, nrows=rank, ncols=0), matrix(self._base_ring, nrows=0, ncols=rank))
+        return trivial_page_data
+    def differential(self,r,s,n=None):
+        if r < 1:
+            raise ValueError("Page index must be >= 1")
+        if (r,s) in self._differentials:
+            diff = self._differentials[r,s]
+            if n is None:
+                return diff
+            if n in diff:
+                return diff[n]
+            source = self.page(r,s)
+            target = self.page(r,s+r)
+            if n in source:
+                source_rank=len(source[n].orders)
+            else:
+                source_rank=0
+            if n+1 in target:
+                target_rank=len(target[n+1].orders)
+            else:
+                target_rank=0
+            return matrix(self._base_ring, nrows=target_rank, ncols=target_rank)
+        if n is None:
+            result = {}
+            source = self.page(r,s)
+            target = self.page(r,s+r)
+            keys = set(list(source.keys())+[n-1 for n in target.keys()])
+            for n in keys:
+                if n in source:
+                    source_rank=len(source[n].orders)
+                else:
+                    source_rank=0
+                if n+1 in target:
+                    target_rank=len(target[n+1].orders)
+                else:
+                    target_rank=0
+                result[n] = matrix(self._base_ring, nrows=target_rank, ncols=target_rank)
+            return result    
+        else:
+            source = self.page(r,s)
+            target = self.page(r,s+r)
+            if n in source:
+                source_rank=len(source[n].orders)
+            else:
+                source_rank=0
+            if n+1 in target:
+                target_rank=len(target[n+1].orders)
+            else:
+                target_rank=0
+            return matrix(self._base_ring, nrows=target_rank, ncols=target_rank)
+
+class PageData():
+    def __init__(self,orders,representatives_e1, representatives,projection):
+        self.orders=orders
+        self.representatives_e1=representatives_e1
+        self.representatives=representatives
+        self.projection=projection
+    def __repr__(self):
+        return("{{orders: {}, representatives_e1: {}, representatives: {}, projection: {}}}".format(self.orders,self.representatives_e1,self.representatives,self.projection))
+
+
+
 
 
     #def _compute_page(self,r,s): 
