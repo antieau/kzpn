@@ -45,10 +45,10 @@ from the command-line.
 
 ## Bibliography
 
-Antieau, Krause, Nikolaus, _On the K-theory of $$\mathbb{Z}/p^n$$ -- announcement_, \[[arXiv:2204](https://arxiv.org/abs/2204.03420)\].
+Antieau, Krause, Nikolaus, _On the K-theory of Z/p^n -- announcement_, \[[arXiv:2204](https://arxiv.org/abs/2204.03420)\].
 
-Antieau, Krause, Nikolaus, _On the K-theory of $$\mathbb{Z}/p^n$$_, \[[arXiv:2405]()\].
+Antieau, Krause, Nikolaus, _On the K-theory of Z/p^n_, \[[arXiv:2405]()\].
 
-Antieau, Krause, Nikolaus, _Prismatic cohomology relative to $$\delta$$-rings_, \[[arXiv:2310](https://arxiv.org/abs/2310.12770)\].
+Antieau, Krause, Nikolaus, _Prismatic cohomology relative to delta-rings_, \[[arXiv:2310](https://arxiv.org/abs/2310.12770)\].
 
 SageMath, the Sage Mathematics Software System (Version 10.3), The Sage Developers, 2024, https://www.sagemath.org.
