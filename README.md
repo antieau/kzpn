@@ -34,8 +34,13 @@ code and there is a file `example.ipynb` which can be accessed and explored usin
 sage example_2101_n2_i2.py
 ```
 
-from the command-line.
+from the command-line. It produces
 
+```
+For f=1 and the Eisenstein polynomial 2 + z, with i=2 and n=2 we have:
+Elementary divisors of K_2(R;Z_p) are [2]
+Elementary divisors of K_3(R;Z_p) are [8]
+```
 
 
 ## Bibliography
