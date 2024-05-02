@@ -36,4 +36,3 @@ def test_syntomic(p,i,n,expected_homology):
     syn._compute_chain_complex()
     syn._compute_homology()
     assert syn.homology.orders == expected_homology, "expected: {}, got: {}".format(expected_homology, syn.homology.orders)
-
