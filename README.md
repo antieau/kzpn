@@ -47,7 +47,7 @@ Elementary divisors of K_3(R;Z_p) are [8]
 
 Antieau, Krause, Nikolaus, _On the K-theory of Z/p^n -- announcement_, \[[arXiv:2204](https://arxiv.org/abs/2204.03420)\].
 
-Antieau, Krause, Nikolaus, _On the K-theory of Z/p^n_, \[[arXiv:2405]()\].
+Antieau, Krause, Nikolaus, _On the K-theory of Z/p^n_, \[[arXiv:2405](https://arxiv.org/abs/2405.04329)\].
 
 Antieau, Krause, Nikolaus, _Prismatic cohomology relative to delta-rings_, \[[arXiv:2310](https://arxiv.org/abs/2310.12770)\].
 
